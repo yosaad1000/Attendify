@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>Face Matching Results</title>
+</head>
+<body>
+    <h1>Students Present in the Image</h1>
+    <ul>
+        {% for student in students_present %}
+            <li>{{ student }}</li>
+        {% else %}
+            <li>No students matched.</li>
+        {% endfor %}
+    </ul>
+    <a href="/">Go Back</a>
+</body>
+</html>

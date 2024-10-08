@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>Face Detection and Matching</title>
+</head>
+<body>
+    <h1>Upload an Image to Detect Faces</h1>
+    <form action="/upload" method="post" enctype="multipart/form-data">
+        <input type="file" name="file">
+        <input type="submit" value="Upload">
+    </form>
+
+    <h2>Or Capture Student Photos</h2>
+    <form action="/capture">
+        <input type="submit" value="Capture Student Photos">
+    </form>
+</body>
+</html>
