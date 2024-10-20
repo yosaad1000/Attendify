@@ -1,18 +1,11 @@
-<!doctype html>
-<html lang="en">
-<head>
-    <title>Face Detection and Matching</title>
-</head>
-<body>
-    <h1>Upload an Image to Detect Faces</h1>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-        <input type="file" name="file">
-        <input type="submit" value="Upload">
-    </form>
+{% extends "base.html" %}
 
-    <h2>Or Capture Student Photos</h2>
-    <form action="/capture">
-        <input type="submit" value="Capture Student Photos">
+{% block content %}
+    <h2>Upload Attendance Image</h2>
+    <form action="{{ url_for('upload_file') }}" method="POST" enctype="multipart/form-data">
+        <label for="file">Select an image to upload:</label>
+        <input type="file" name="file" id="file" accept=".jpg, .jpeg, .png" required>
+        <input type="submit" value="Upload Image">
     </form>
-</body>
-</html>
+    <p>Upload an image with students, and the system will detect and match faces from the registration database.</p>
+{% endblock %}

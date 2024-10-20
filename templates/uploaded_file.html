@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2>Processed Attendance Image</h2>
+    <p>Here is the image with detected and recognized students:</p>
+    <img src="{{ url_for('uploaded_file', filename=filename) }}" alt="Processed Image">
+    <p><a href="{{ url_for('index') }}">Upload another image</a></p>
+{% endblock %}

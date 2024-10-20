@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2>Register a New Student</h2>
+    <form action="{{ url_for('register_student') }}" method="POST" enctype="multipart/form-data">
+        <label for="name">Student Name:</label>
+        <input type="text" name="name" id="name" required>
+
+        <label for="student_id">Student ID:</label>
+        <input type="text" name="student_id" id="student_id" required>
+
+        <label for="file">Upload Student Image:</label>
+        <input type="file" name="file" id="file" accept=".jpg, .jpeg, .png" required>
+
+        <input type="submit" value="Register">
+    </form>
+{% endblock %}
