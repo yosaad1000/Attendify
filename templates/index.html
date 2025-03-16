@@ -1,11 +1,31 @@
 {% extends "base.html" %}
 
+{% block title %}Home - Attendify{% endblock %}
+{%block extra_styles%}
+<style>
+    .message {
+        margin: 20px auto;
+        max-width: 600px;
+        padding: 15px;
+        border-radius: 5px;
+        font-size: 1rem;
+        text-align: center;
+    }
+
+    .message-success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+
+    .message-error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+</style>
+{%endblock%}
 {% block content %}
-    <h2>Upload Attendance Image</h2>
-    <form action="{{ url_for('upload_file') }}" method="POST" enctype="multipart/form-data">
-        <label for="file">Select an image to upload:</label>
-        <input type="file" name="file" id="file" accept=".jpg, .jpeg, .png" required>
-        <input type="submit" value="Upload Image">
-    </form>
-    <p>Upload an image with students, and the system will detect and match faces from the registration database.</p>
-{% endblock %}
+<h1>Welcome to Attendify</h1>
+<p>Your one-stop solution for student attendance and management.</p>
+{%endblock%}

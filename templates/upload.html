@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Attendify-Home {% endblock %}
+
+    {% block extra_styles %}
+    <style>
+        .content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .illustration {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .illustration img {
+            max-width: 47%;
+            height: auto;
+            border-radius: 10px;
+        }
+
+        .form {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .form label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .form input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        .form button {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #fff;
+            background-color: #3b3b98;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .form button:hover {
+            background-color: #2d2d7a;
+        }
+    </style>
+    {%endblock%}
+
+{% block content %}
+        <div class="illustration">
+            <img src='static/images/2202_w037_n003_224b_p1_224.jpg' alt="Illustration">
+        </div>
+        <form class="form" action="{{ url_for('upload_file') }}" method="POST" enctype="multipart/form-data">
+            <label for="file">Select an image to upload:</label>
+            <input type="file" id="file" name="file" accept=".jpg, .jpeg, .png" required>
+            <button type="submit">Upload Image</button>
+        </form>
+        <p>Upload an image with students, and the system will detect and match faces from the registered database.</p>
+{% endblock %}

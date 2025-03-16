@@ -1,8 +1,47 @@
-{% extends "base.html" %}
+{%extends "base.html"}
+    {%block title}Attendify-processed img{%endblock%}
+    {%block extra_styles %}
+    <style>
 
-{% block content %}
-    <h2>Processed Attendance Image</h2>
-    <p>Here is the image with detected and recognized students:</p>
-    <img src="{{ url_for('uploaded_file', filename=filename) }}" alt="Processed Image">
-    <p><a href="{{ url_for('index') }}">Upload another image</a></p>
-{% endblock %}
+        .content-container h2 {
+            font-size: 2rem;
+            color: #3b3b98;
+            margin-bottom: 20px;
+        }
+
+        .content-container p {
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+            color: #333;
+            text-align: center;
+        }
+
+        .content-container img {
+            max-width: 60%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .content-container a {
+            text-decoration: none;
+            color: #fff;
+            background-color: #3b3b98;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 1.2rem;
+            transition: background-color 0.3s;
+        }
+
+        .content-container a:hover {
+            background-color: #2d2d7a;
+        }
+    </style>
+    {%endblock%}
+{%block content%}
+        <h2>Processed Attendance Image</h2>
+        <p>Here is the image with detected and recognized students:</p>
+        <img src="{{ url_for('uploaded_file', filename=filename) }}" alt="Processed Image">
+        <p><a href="{{ url_for('index') }}">Upload another image</a></p>
+{%endblock%}

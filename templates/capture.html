@@ -1,18 +1,89 @@
-<!doctype html>
-<html lang="en">
-<head>
-    <title>Capture Student Photos</title>
-</head>
-<body>
-    <h1>Capture Student Photos</h1>
-    <form action="/save_student" method="POST" enctype="multipart/form-data">
-        <label for="student_name">Student Name:</label>
-        <input type="text" name="student_name" required>
-    
-        <label for="student_image">Upload Student Image:</label>
-        <input type="file" name="student_image" required>
-    
-        <button type="submit">Submit</button>
-    </form>    
-</body>
-</html>
+{% extends "base.html" %}
+{% block title %}Capture Student Image{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .camera-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+
+    video, canvas {
+        border: 2px solid #3b3b98;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+
+    .buttons {
+        display: flex;
+        justify-content: space-around;
+        width: 100%;
+        max-width: 300px;
+    }
+
+    .buttons button {
+        padding: 10px 20px;
+        font-size: 1rem;
+        color: #fff;
+        background-color: #3b3b98;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    .buttons button:hover {
+        background-color: #2d2d7a;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="camera-container">
+    <h2>Capture Student Image</h2>
+    <video id="video" autoplay playsinline width="640" height="480"></video>
+    <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
+    <div class="buttons">
+        <button id="capture">Capture</button>
+        <button id="save">Save</button>
+    </div>
+</div>
+
+<form id="captureForm" action="{{ url_for('save_captured_image') }}" method="POST" style="display: none;">
+    <input type="hidden" name="image_data" id="image_data">
+</form>
+
+<script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const captureButton = document.getElementById('capture');
+    const saveButton = document.getElementById('save');
+    const captureForm = document.getElementById('captureForm');
+    const imageDataInput = document.getElementById('image_data');
+
+    // Start the camera
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+            video.srcObject = stream;
+        })
+        .catch(err => {
+            console.error("Error accessing camera:", err);
+        });
+
+    // Capture the image
+    captureButton.addEventListener('click', () => {
+        const context = canvas.getContext('2d');
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.style.display = "block";
+    });
+
+    // Save the image and submit the form
+    saveButton.addEventListener('click', () => {
+        const dataURL = canvas.toDataURL('image/png');
+        imageDataInput.value = dataURL;
+        captureForm.submit();
+    });
+</script>
+{% endblock %}

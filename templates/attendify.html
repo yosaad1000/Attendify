@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendify</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+            height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            padding: 40px;
+            box-sizing: border-box;
+            background-color: #fff;
+        }
+
+        .illustration {
+            flex: 1;
+            text-align: center;
+            margin-right: 20px;
+        }
+
+        .illustration img {
+            width: 100%;
+            max-width: 600px;
+            border-radius: 5px;
+        }
+
+        .content {
+            flex: 1;
+            text-align: center;
+        }
+
+        .title {
+            font-size: 3rem;
+            color: #3b3b98;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .subtitle {
+            font-size: 1.5rem;
+            color: #666;
+            margin-bottom: 40px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 15px 30px;
+            margin: 10px 10px 0 0;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #3b3b98;
+            border: 2px solid #3b3b98;
+            border-radius: 5px;
+            background-color: #fff;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .button:hover {
+            background-color: #3b3b98;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="illustration">
+            <img src="static\images\8262261.png" alt="Illustration of students">
+        </div>
+        <div class="content">
+            <div class="title">Attendify</div>
+            <div class="subtitle">Snap your Attendance now.</div>
+            <a href="{{url_for('login')}}" class="button">Login</a>
+            <a href="{{url_for('signup')}}" class="button">Sign up</a>
+        </div>
+    </div>
+</body>
+</html>
+
+
+

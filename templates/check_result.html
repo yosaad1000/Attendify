@@ -1,17 +1,84 @@
-<!doctype html>
-<html lang="en">
-<head>
-    <title>Face Matching Results</title>
-</head>
-<body>
-    <h1>Students Present in the Image</h1>
-    <ul>
-        {% for student in students_present %}
-            <li>{{ student }}</li>
-        {% else %}
-            <li>No students matched.</li>
-        {% endfor %}
-    </ul>
-    <a href="/">Go Back</a>
-</body>
-</html>
+{%extends "base.html"%}
+    {%block title%}
+    Attendify-class attendance{%endblock%}
+
+    <style>
+        .left-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .left-content h1 {
+            font-size: 2rem;
+            color: #3b3b98;
+            margin-bottom: 20px;
+        }
+
+        .left-content ul {
+            list-style: none;
+            padding: 0;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+
+        .left-content ul li {
+            background-color: #fff;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .left-content a {
+            text-decoration: none;
+            color: #fff;
+            background-color: #3b3b98;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 1.2rem;
+            transition: background-color 0.3s;
+        }
+
+        .left-content a:hover {
+            background-color: #2d2d7a;
+        }
+
+        .illustration {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            max-width: 300px;
+        }
+
+        .illustration img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+{%endblock%}
+{%block content%}
+        <div class="left-content">
+            <h1>Students Present in the Image</h1>
+            <ul>
+                {% for student in students_present %}
+                    <li>{{ student }}</li>
+                {% else %}
+                    <li>No students matched.</li>
+                {% endfor %}
+            </ul>
+            <a href="/">Go Back</a>
+        </div>
+        <div class="illustration">
+            <img src="static/images/62e6e3a9cb942028e99e76d2.jpg" alt="Illustration">
+        </div>
+{%endblock%}
+
