@@ -3,39 +3,86 @@
 
 {% block extra_styles %}
 <style>
+    /* Camera container styling */
     .camera-container {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 20px;
+        padding: 40px;
     }
 
+    /* Video and canvas styling */
     video, canvas {
         border: 2px solid #3b3b98;
         border-radius: 10px;
         margin-bottom: 20px;
+        max-width: 100%;
+        height: auto;
     }
 
+    /* Buttons container */
     .buttons {
         display: flex;
         justify-content: space-around;
+        gap: 15px;
         width: 100%;
-        max-width: 300px;
+        max-width: 400px;
+        flex-wrap: wrap;
     }
 
+    /* Buttons styling */
     .buttons button {
-        padding: 10px 20px;
+        flex: 1;
+        padding: 12px 20px;
         font-size: 1rem;
         color: #fff;
         background-color: #3b3b98;
         border: none;
         border-radius: 5px;
         cursor: pointer;
+        transition: background 0.3s;
     }
 
     .buttons button:hover {
         background-color: #2d2d7a;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .camera-container {
+            padding: 20px;
+        }
+
+        video, canvas {
+            width: 100%;
+            height: auto;
+        }
+
+        .buttons {
+            flex-direction: column;
+            gap: 10px;
+            max-width: 100%;
+        }
+
+        .buttons button {
+            width: 100%;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .camera-container {
+            padding: 15px;
+        }
+
+        .buttons {
+            flex-direction: column;
+        }
+
+        .buttons button {
+            width: 100%;
+            font-size: 0.9rem;
+        }
     }
 </style>
 {% endblock %}

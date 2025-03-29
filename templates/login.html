@@ -129,18 +129,80 @@
             height: auto;
         }
 
-        @media (max-width: 768px) {
+        /* Responsive Styles */
+        @media (max-width: 1024px) {
             .container {
                 flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+
+            .left-column, .right-column {
+                width: 100%;
+                padding: 30px 20px;
+            }
+
+            .left-column form .buttons {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .right-column {
+                height: 300px;
+            }
+
+            .right-column img {
+                width: 100%;
+                height: auto;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .left-column h1 {
+                font-size: 2rem;
+            }
+
+            .left-column p {
+                font-size: 0.9rem;
+            }
+
+            .left-column form input {
+                font-size: 0.9rem;
+                padding: 10px;
             }
 
             .right-column {
                 height: 200px;
             }
+        }
+
+        @media (max-width: 480px) {
+            .left-column h1 {
+                font-size: 1.8rem;
+            }
+
+            .left-column p {
+                font-size: 0.8rem;
+            }
+
+            .left-column form input {
+                font-size: 0.8rem;
+                padding: 8px;
+            }
+
+            .right-column {
+                height: 150px;
+            }
 
             .right-column img {
-                height: 100%;
                 width: auto;
+                max-height: 100%;
+            }
+
+            .back-button {
+                font-size: 20px;
+                top: 15px;
+                left: 15px;
             }
         }
     </style>
@@ -170,18 +232,5 @@
             <img src="static/images/image 1.png" alt="Illustration">
         </div>
     </div>
-
-    <!-- <script>
-        // Back Button Alert
-        document.querySelector('.back-button').addEventListener('click', () => {
-            alert('Back button clicked!');
-        });
-
-        // Admin Button Alert
-        document.querySelector('.admin-button').addEventListener('click', () => {
-            alert('Admin section is under construction!');
-        });
-    </script> -->
 </body>
 </html>
-

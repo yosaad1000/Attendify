@@ -73,6 +73,58 @@
             background-color: #3b3b98;
             color: #fff;
         }
+
+        /* Responsive Design */
+        @media screen and (max-width: 1024px) {
+            .container {
+                flex-direction: column;
+                text-align: center;
+                padding: 20px;
+            }
+
+            .illustration {
+                margin: 0 0 30px 0;
+            }
+
+            .illustration img {
+                max-width: 100%;
+            }
+
+            .content {
+                width: 100%;
+            }
+
+            .title {
+                font-size: 2.5rem;
+            }
+
+            .subtitle {
+                font-size: 1.2rem;
+            }
+
+            .button {
+                width: 80%;
+                max-width: 400px;
+                margin: 10px auto;
+                display: block;
+            }
+        }
+
+        @media screen and (max-width: 600px) {
+            .title {
+                font-size: 2rem;
+            }
+
+            .subtitle {
+                font-size: 1rem;
+            }
+
+            .button {
+                width: 90%;
+                font-size: 1rem;
+                padding: 12px 20px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -89,6 +141,3 @@
     </div>
 </body>
 </html>
-
-
-

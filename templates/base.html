@@ -17,22 +17,52 @@
 
         .navbar {
             background-color: #3b3b98;
-            padding: 15px 30px;
             color: #fff;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding: 15px 30px;
+            position: relative;
+            z-index: 1000;
         }
 
-        .navbar a {
+        .navbar .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .menu {
+            display: flex;
+            gap: 20px;
+        }
+
+        .menu a {
             color: #fff;
             text-decoration: none;
             font-size: 1.2rem;
-            margin-left: 20px;
+            padding: 10px 15px;
+            transition: background 0.3s;
         }
 
-        .navbar a:hover {
-            text-decoration: underline;
+        .menu a:hover {
+            background: #4f4fbf;  /* Background color changes on hover */
+        }
+
+        .menu-toggle {
+            display: none;
+            flex-direction: column;
+            justify-content: space-between;
+            width: 30px;
+            height: 21px;
+            cursor: pointer;
+        }
+
+        .menu-toggle span {
+            display: block;
+            height: 3px;
+            width: 100%;
+            background: #fff;
+            transition: all 0.3s;
         }
 
         .footer {
@@ -51,25 +81,84 @@
             align-items: center;
             justify-content: center;
         }
+
+        /* ✅ Responsive Menu Styles */
+        @media (max-width: 768px) {
+            .menu {
+                flex-direction: column;
+                position: fixed;
+                top: 0;
+                right: 0;
+                width: 250px;
+                height: auto;
+                max-height: 100vh;
+                background: #3b3b98;
+                box-shadow: -5px 0 10px rgba(0, 0, 0, 0.2);
+                z-index: 10;
+                padding: 50px 20px;
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity 0.3s ease, visibility 0.3s ease;
+            }
+
+            .menu a {
+                font-size: 1.5rem;
+                padding: 15px 20px;
+                transition: background 0.3s;
+            }
+
+            /* ✅ Smooth hover effect */
+            .menu a:hover {
+                background: #4f4fbf;  /* Lighter blue background on hover */
+                color: #fff;          /* Keep text white */
+            }
+
+            .menu-toggle {
+                display: flex;
+                z-index: 15;
+            }
+
+            /* ✅ Menu visible when active */
+            .menu.active {
+                opacity: 1;
+                visibility: visible;
+            }
+        }
     </style>
     {% block extra_styles %}{% endblock %}
 </head>
 <body>
     <div class="navbar">
         <div class="logo">Attendify</div>
-        <div class="links">
-            <a href="{{ url_for('index') }}"> Home </a>
+        <div class="menu-toggle" onclick="toggleMenu()">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        <div class="menu">
+            <a href="{{ url_for('index') }}">Home</a>
             <a href="{{ url_for('register_student') }}">Register Student</a>
             <a href="{{ url_for('uploading') }}">Upload Img</a>
-            <a href="{{url_for('attendify')}}">Log Out</a>
-            <a href="{{url_for('dashboard')}}">Dashboard</a>
+            <a href="{{ url_for('attendify') }}">Log Out</a>
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
         </div>
     </div>
+
     <div class="content-container">
         {% block content %}{% endblock %}
     </div>
+
     <div class="footer">
         &copy; 2024 Attendify. All rights reserved.
     </div>
+
+    <script>
+        const menu = document.querySelector('.menu');
+        const toggle = document.querySelector('.menu-toggle');
+
+        function toggleMenu() {
+            menu.classList.toggle('active');
+        }
+    </script>
 </body>
 </html>

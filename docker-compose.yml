@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  postgres-db:
+    image: postgres:latest
+    container_name: my_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    networks:
+      - app-network
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  face-attendance-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: face-attendance-app
+    depends_on:
+      - postgres-db
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      - DOCKER_ENV=true
+      - FLASK_APP=app.py
+      - FLASK_ENV=production
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=postgres-db
+      - DB_PORT=5432
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
