@@ -30,7 +30,7 @@ services:
     environment:
       - DOCKER_ENV=true
       - FLASK_APP=app.py
-      - FLASK_ENV=production
+      - FLASK_ENV=development
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
@@ -39,6 +39,9 @@ services:
     restart: unless-stopped
     networks:
       - app-network
+    volumes:
+      - .:/app
+
 
 networks:
   app-network:
