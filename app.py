@@ -1,4 +1,6 @@
+
 import os
+import json
 import base64
 import logging
 import numpy as np
@@ -7,11 +9,12 @@ from PIL import Image, ImageDraw
 import face_recognition
 from flask import Flask, render_template, request, redirect, url_for, Response, send_from_directory
 from werkzeug.utils import secure_filename
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.sql import func
 from dotenv import load_dotenv
 from pinecone import Pinecone, ServerlessSpec
 from datetime import date
+import firebase_admin
+from firebase_admin import credentials, firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -25,7 +28,13 @@ logger = logging.getLogger(__name__)
 if not os.getenv("DOCKER_ENV"):  # Check if running inside Docker
     load_dotenv()
 
-# Get environment variables
+# Initialize Firebase
+firebase_config = json.loads(os.getenv("FIREBASE_CREDENTIALS"))
+cred = credentials.Certificate(firebase_config)
+firebase_admin.initialize_app(cred)
+firestore_db = firestore.client()
+
+# Pinecone configuration
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 INDEX_NAME = os.getenv("PINEONE_INDEX_NAME", "student-face-encodings")
 PINECONE_CLOUD = os.getenv("PINEONE_CLOUD", "aws")
@@ -49,60 +58,33 @@ if INDEX_NAME not in pc.list_indexes().names():
 # Connect to the Pinecone index
 student_index = pc.Index(INDEX_NAME)
 
-# Configure database
-DB_USER = os.getenv('DB_USER')
-DB_PASSWORD = os.getenv('DB_PASSWORD')
-DB_HOST = os.getenv('DB_HOST')
-DB_PORT = os.getenv('DB_PORT')
-DB_NAME = os.getenv('DB_NAME')
-
-# SQLAlchemy configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-# Initialize SQLAlchemy
-db = SQLAlchemy(app)
-
-# Define models
-class Student(db.Model):
-    __tablename__ = 'students'
-    student_id = db.Column(db.String(50), primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    attendances = db.relationship('Attendance', backref='student', lazy=True)
-
-class Attendance(db.Model):
-    __tablename__ = 'attendance'
-    id = db.Column(db.Integer, primary_key=True)
-    student_id = db.Column(db.String(50), db.ForeignKey('students.student_id'), nullable=False)
-    timestamp = db.Column(db.DateTime, default=func.now())
-    attendance_date = db.Column(db.Date, default=date.today)
-
-# Initialize database
-with app.app_context():
-    db.create_all()
-
 def log_attendance(student_id):
-    """Log attendance using SQLAlchemy"""
+    """Log attendance using Firestore"""
     try:
-        # Check if attendance for today already exists
-        existing_attendance = Attendance.query.filter_by(
-            student_id=student_id, 
-            attendance_date=date.today()
-        ).first()
+        today = date.today().isoformat()
+        attendance_ref = firestore_db.collection('attendance')
         
-        # If no attendance record for today, create one
-        if not existing_attendance:
-            new_attendance = Attendance(student_id=student_id)
-            db.session.add(new_attendance)
-            db.session.commit()
-        return True
+        # Check for existing attendance
+        query = attendance_ref.where(filter=FieldFilter('student_id', '==', student_id)) \
+                              .where(filter=FieldFilter('attendance_date', '==', today)).limit(1)
+        existing = query.get()
+        
+        if not existing:
+            attendance_ref.add({
+                'student_id': student_id,
+                'timestamp': firestore.SERVER_TIMESTAMP,
+                'attendance_date': today
+            })
+            return True
+        return False
     except Exception as e:
         logger.error(f"Error logging attendance: {e}")
-        db.session.rollback()
         return False
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg'}
+
+# Routes (Keep the same routes as before)
 
 # Routes
 @app.route('/')
@@ -129,37 +111,43 @@ def login():
         return redirect(url_for('index'))
     return render_template('login.html')
 
+
 @app.route('/dashboard')
 def dashboard():
     try:
-        # Using SQLAlchemy for queries
-        from sqlalchemy import func, distinct
+        # Get all unique attendance dates
+        attendance_dates = set()
+        attendance_docs = firestore_db.collection('attendance').stream()
+        for doc in attendance_docs:
+            data = doc.to_dict()
+            attendance_dates.add(data['attendance_date'])
+        total_days = len(attendance_dates)
 
-        # Count total days (distinct attendance dates)
-        total_days_query = db.session.query(
-            func.count(distinct(Attendance.attendance_date))
-        ).scalar()
-        total_days = total_days_query or 0
-
-        # Query for student attendance data
-        attendance_data = db.session.query(
-            Student.student_id,
-            Student.name,
-            func.count(distinct(Attendance.attendance_date)).label('days_present')
-        ).outerjoin(
-            Attendance, Student.student_id == Attendance.student_id
-        ).group_by(
-            Student.student_id, Student.name
-        ).all()
-
-        # Format the results
+        # Get all students
+        students = firestore_db.collection('students').stream()
         attendance_results = []
-        for student in attendance_data:
-            percentage = round((student.days_present / total_days * 100), 2) if total_days > 0 else 0
+
+        for student in students:
+            student_data = student.to_dict()
+            student_id = student_data['student_id']
+            name = student_data['name']
+
+            # Get student's attendance
+            attendance_query = firestore_db.collection('attendance') \
+                .where(filter=FieldFilter('student_id', '==', student_id)).stream()
+            
+            present_dates = set()
+            for att in attendance_query:
+                att_data = att.to_dict()
+                present_dates.add(att_data['attendance_date'])
+            
+            days_present = len(present_dates)
+            percentage = round((days_present / total_days * 100), 2) if total_days > 0 else 0
+
             attendance_results.append({
-                'student_id': student.student_id,
-                'name': student.name,
-                'days_present': student.days_present,
+                'student_id': student_id,
+                'name': name,
+                'days_present': days_present,
                 'total_days': total_days,
                 'percentage': percentage
             })
@@ -178,12 +166,12 @@ def register_student():
         student_id = request.form['student_id']
         image_data = None
 
-        # Check if student already exists
-        existing_student = Student.query.filter_by(student_id=student_id).first()
-        if existing_student:
+        # Check if student exists
+        student_ref = firestore_db.collection('students').document(student_id)
+        if student_ref.get().exists:
             return "Student ID already registered", 400
 
-        # Handle image input
+        # Handle image input (same as before)
         if 'file' in request.files:
             file = request.files['file']
             if file and allowed_file(file.filename):
@@ -195,24 +183,20 @@ def register_student():
             return "No image provided", 400
 
         try:
-            # Process image and store embeddings
+            # Face processing (same as before)
             np_image = face_recognition.load_image_file(BytesIO(image_data))
-
-            # Detect faces in the image
             face_locations = face_recognition.face_locations(np_image)
             if not face_locations:
                 return "No faces found in the image", 400
 
-            # Extract face encodings
             face_encodings = face_recognition.face_encodings(np_image, face_locations)
             if not face_encodings:
                 return "No face encodings found", 400
 
-            # Get the first face encoding (assuming one face per image)
             face_encoding = face_encodings[0]
             face_encoding_np = np.array(face_encoding, dtype=np.float32)
 
-            # Store face encoding and metadata in Pinecone
+            # Store in Pinecone (same as before)
             student_index.upsert(
                 vectors=[{
                     "id": student_id,
@@ -224,16 +208,16 @@ def register_student():
                 }]
             )
             
-            # Store in SQLAlchemy
-            new_student = Student(student_id=student_id, name=name)
-            db.session.add(new_student)
-            db.session.commit()
+            # Store in Firestore
+            student_ref.set({
+                'student_id': student_id,
+                'name': name
+            })
             
             return redirect(url_for('index'))
         
         except Exception as e:
             logger.error(f"Registration error: {str(e)}")
-            db.session.rollback()
             return f"Error processing registration: {str(e)}", 500
 
     return render_template('register.html')
