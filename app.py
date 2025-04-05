@@ -258,6 +258,7 @@ def upload_file():
 
 def start_processing_image(image_data):
     """Start processing the image in the background and return a session ID"""
+    global processing_sessions
     session_id = str(uuid.uuid4())
     # Store the original image for this session
     np_image = face_recognition.load_image_file(BytesIO(image_data))
@@ -276,6 +277,7 @@ def start_processing_image(image_data):
 
 def process_faces_background(session_id):
     """Process faces in the background and update results progressively"""
+    global processing_sessions
     session_data = processing_sessions[session_id]
     np_image = session_data['image']
     
@@ -353,6 +355,7 @@ def process_faces_background(session_id):
 @app.route('/face_status/<session_id>')
 def face_status(session_id):
     """API endpoint to get the current status of face processing"""
+    global processing_sessions
     if session_id not in processing_sessions:
         return jsonify({'error': 'Session not found'}), 404
     
