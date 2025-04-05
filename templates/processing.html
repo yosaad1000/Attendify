@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+{% block title %}Attendify - Processing Attendance{% endblock %}
+{% block extra_styles %}
+<style>
+    .processing-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+        text-align: center;
+    }
+
+    .processing-header {
+        margin-bottom: 20px;
+    }
+
+    .faces-container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 15px;
+        margin-bottom: 20px;
+        width: 100%;
+    }
+
+    .face-card {
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 15px;
+        width: 200px;
+        transition: transform 0.2s;
+        animation: fadeIn 0.5s;
+    }
+
+    .face-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .face-img {
+        width: 100%;
+        height: auto;
+        border-radius: 5px;
+        margin-bottom: 10px;
+    }
+
+    .face-name {
+        font-weight: bold;
+        font-size: 1.1rem;
+        margin-bottom: 5px;
+    }
+
+    .face-status {
+        font-size: 0.9rem;
+        color: #666;
+    }
+
+    .known {
+        color: #2ecc71;
+    }
+
+    .unknown {
+        color: #e74c3c;
+    }
+
+    .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3b3b98;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 20px auto;
+    }
+
+    .full-image {
+        max-width: 90%;
+        margin: 20px auto;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .status-message {
+        margin: 10px 0;
+        font-size: 1.1rem;
+    }
+
+    .control-buttons {
+        margin-top: 20px;
+    }
+
+    .btn {
+        text-decoration: none;
+        color: #fff;
+        background-color: #3b3b98;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-size: 1rem;
+        transition: background-color 0.3s;
+        margin: 0 10px;
+    }
+
+    .btn:hover {
+        background-color: #2d2d7a;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    /* Responsive styles */
+    @media (max-width: 768px) {
+        .face-card {
+            width: 150px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .face-card {
+            width: 130px;
+            padding: 10px;
+        }
+        
+        .face-name {
+            font-size: 0.9rem;
+        }
+        
+        .face-status {
+            font-size: 0.8rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="processing-container">
+    <div class="processing-header">
+        <h2>Processing Attendance</h2>
+        <p id="status-message" class="status-message">Identifying faces in image...</p>
+    </div>
+    
+    <div id="faces-container" class="faces-container">
+        <!-- Face cards will be added here dynamically -->
+    </div>
+    
+    <div id="loading-spinner" class="loading-spinner"></div>
+    
+    <div id="full-image-container" style="display: none; width: 100%; text-align: center;">
+        <h3>Completed Attendance Image</h3>
+        <img id="full-image" class="full-image" alt="Processed Image">
+    </div>
+    
+    <div class="control-buttons">
+        <a href="{{ url_for('index') }}" class="btn">Upload Another Image</a>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const sessionId = '{{ session_id }}';
+        const facesContainer = document.getElementById('faces-container');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const statusMessage = document.getElementById('status-message');
+        const fullImageContainer = document.getElementById('full-image-container');
+        const fullImage = document.getElementById('full-image');
+        
+        // Track which faces we've already displayed
+        const displayedFaces = new Set();
+        
+        // Function to poll for updates
+        function pollStatus() {
+            fetch(`/face_status/${sessionId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Update status message
+                    if (data.error) {
+                        statusMessage.textContent = `Error: ${data.error}`;
+                        loadingSpinner.style.display = 'none';
+                        return;
+                    }
+                    
+                    // Update faces
+                    if (data.processed_faces && data.processed_faces.length > 0) {
+                        data.processed_faces.forEach(face => {
+                            // Only add faces we haven't displayed yet
+                            if (!displayedFaces.has(face.id)) {
+                                displayedFaces.add(face.id);
+                                
+                                // Create face card
+                                const faceCard = document.createElement('div');
+                                faceCard.className = 'face-card';
+                                
+                                // Add face image
+                                const img = document.createElement('img');
+                                img.src = `data:image/jpeg;base64,${face.face_img}`;
+                                img.className = 'face-img';
+                                img.alt = face.name;
+                                faceCard.appendChild(img);
+                                
+                                // Add name
+                                const nameElem = document.createElement('div');
+                                nameElem.className = `face-name ${face.name === 'Unknown' ? 'unknown' : 'known'}`;
+                                nameElem.textContent = face.name;
+                                faceCard.appendChild(nameElem);
+                                
+                                // Add status
+                                const statusElem = document.createElement('div');
+                                statusElem.className = 'face-status';
+                                statusElem.textContent = face.name === 'Unknown' ? 'Not recognized' : 'Attendance marked';
+                                faceCard.appendChild(statusElem);
+                                
+                                // Add to container
+                                facesContainer.appendChild(faceCard);
+                            }
+                        });
+                        
+                        // Update status message
+                        statusMessage.textContent = `Processed ${data.total_faces} faces...`;
+                    }
+                    
+                    // Check if processing is complete
+                    if (data.status === 'completed') {
+                        loadingSpinner.style.display = 'none';
+                        statusMessage.textContent = `Completed processing ${data.total_faces} faces.`;
+                        
+                        // Show the full image if available
+                        if (data.full_image) {
+                            fullImage.src = `data:image/jpeg;base64,${data.full_image}`;
+                            fullImageContainer.style.display = 'block';
+                        }
+                        return;
+                    }
+                    
+                    // Continue polling if not completed
+                    setTimeout(pollStatus, 500);
+                })
+                .catch(error => {
+                    console.error('Error fetching status:', error);
+                    statusMessage.textContent = 'Error connecting to server. Please try again.';
+                    loadingSpinner.style.display = 'none';
+                });
+        }
+        
+        // Start polling
+        pollStatus();
+    });
+</script>
+{% endblock %}
