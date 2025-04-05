@@ -6,7 +6,7 @@ import numpy as np
 from io import BytesIO
 from PIL import Image, ImageDraw
 import face_recognition
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, send_from_directory , jsonify
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 from pinecone import Pinecone, ServerlessSpec
@@ -14,7 +14,11 @@ from datetime import date
 import firebase_admin
 from firebase_admin import credentials, firestore
 from google.cloud.firestore_v1.base_query import FieldFilter
+from datetime import datetime
+import uuid
+import threading
 
+processing_sessions = {}
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "supersecretkey")
@@ -244,15 +248,122 @@ def upload_file():
         return "Invalid file type", 400
 
     try:
-        img_data, results = process_image_for_attendance(file.read())
-        return render_template('uploaded_file.html',
-                             img_data=img_data,
-                             recognition_results=results)
-    except ValueError as e:
-        return str(e), 400
+        # Process the image and return a session ID
+        session_id = start_processing_image(file.read())
+        return render_template('processing.html', session_id=session_id)
     except Exception as e:
         logger.error(f"Upload error: {str(e)}")
         return f"Error processing image: {str(e)}", 500
+
+
+def start_processing_image(image_data):
+    """Start processing the image in the background and return a session ID"""
+    session_id = str(uuid.uuid4())
+    # Store the original image for this session
+    np_image = face_recognition.load_image_file(BytesIO(image_data))
+    # Store in a global dictionary or database
+    processing_sessions[session_id] = {
+        'image': np_image,
+        'processed_faces': [],
+        'status': 'processing'
+    }
+    
+    # Start a background thread to process faces
+    threading.Thread(target=process_faces_background, args=(session_id,)).start()
+    
+    return session_id
+
+
+def process_faces_background(session_id):
+    """Process faces in the background and update results progressively"""
+    session_data = processing_sessions[session_id]
+    np_image = session_data['image']
+    
+    # Detect all face locations first
+    face_locations = face_recognition.face_locations(np_image)
+    
+    if not face_locations:
+        session_data['status'] = 'completed'
+        session_data['error'] = 'No faces detected'
+        return
+    
+    # Create a copy of the image for drawing
+    pil_image = Image.fromarray(np_image)
+    draw = ImageDraw.Draw(pil_image)
+    
+    # Process each face one by one
+    for i, location in enumerate(face_locations):
+        top, right, bottom, left = location
+        
+        # Get face encoding
+        face_encoding = face_recognition.face_encodings(np_image, [location])[0]
+        
+        # Query student database
+        results = student_index.query(
+            vector=face_encoding.tolist(),
+            top_k=1,
+            include_metadata=True
+        )
+        
+        # Process results
+        if results['matches'] and results['matches'][0]['score'] < 0.25:
+            match = results['matches'][0]
+            student_id = match['id']
+            name = match['metadata'].get('name', 'Unknown')
+            log_attendance(student_id)
+            color = (0, 255, 0)  # Green
+        else:
+            student_id = None
+            name = "Unknown"
+            color = (255, 0, 0)  # Red
+        
+        # Draw rectangle and name on the image
+        draw.rectangle(((left, top), (right, bottom)), outline=color, width=5)
+        draw.text((left + 6, bottom + 6), name, fill=(0, 0, 0, 255))
+        
+        # Create a cropped image of just this face
+        face_img = pil_image.crop((left, top, right, bottom))
+        face_img_io = BytesIO()
+        face_img.save(face_img_io, 'JPEG')
+        face_img_io.seek(0)
+        face_img_data = base64.b64encode(face_img_io.getvalue()).decode('ascii')
+        
+        # Save the processed face data
+        face_data = {
+            'id': i,
+            'student_id': student_id,
+            'name': name, 
+            'face_img': face_img_data,
+            'processed_at': datetime.now().isoformat()
+        }
+        
+        # Update the session data
+        session_data['processed_faces'].append(face_data)
+        
+    # Save the full processed image
+    full_img_io = BytesIO()
+    pil_image.save(full_img_io, 'JPEG')
+    full_img_io.seek(0)
+    session_data['full_image'] = base64.b64encode(full_img_io.getvalue()).decode('ascii')
+    
+    # Mark processing as completed
+    session_data['status'] = 'completed'
+
+
+@app.route('/face_status/<session_id>')
+def face_status(session_id):
+    """API endpoint to get the current status of face processing"""
+    if session_id not in processing_sessions:
+        return jsonify({'error': 'Session not found'}), 404
+    
+    session_data = processing_sessions[session_id]
+    return jsonify({
+        'status': session_data['status'],
+        'processed_faces': session_data['processed_faces'],
+        'error': session_data.get('error'),
+        'full_image': session_data.get('full_image') if session_data['status'] == 'completed' else None,
+        'total_faces': len(session_data.get('processed_faces', []))
+    })
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
