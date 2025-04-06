@@ -103,46 +103,6 @@ def process_image_for_registration(image_data, student_id, name):
         "metadata": {"name": name, "student_id": student_id}
     }])
 
-def process_image_for_attendance(image_data):
-    """Process image for attendance marking"""
-    np_image = face_recognition.load_image_file(BytesIO(image_data))
-    face_locations = face_recognition.face_locations(np_image)
-    face_encodings = face_recognition.face_encodings(np_image, face_locations)
-    
-    if not face_encodings:
-        raise ValueError("No faces detected")
-    
-    pil_image = Image.fromarray(np_image)
-    draw = ImageDraw.Draw(pil_image)
-    recognized_students = []
-
-    for face_encoding, location in zip(face_encodings, face_locations):
-        results = student_index.query(
-            vector=face_encoding.tolist(),
-            top_k=1,
-            include_metadata=True
-        )
-
-        if results['matches'] and results['matches'][0]['score'] < 0.25:
-            match = results['matches'][0]
-            student_id = match['id']
-            name = match['metadata'].get('name', 'Unknown')
-            log_attendance(student_id)
-            recognized_students.append({'student_id': student_id, 'name': name})
-            color = (0, 255, 0)  # Green
-        else:
-            name = "Unknown"
-            color = (255, 0, 0)  # Red
-
-        top, right, bottom, left = location
-        draw.rectangle(((left, top), (right, bottom)), outline=color, width=5)
-        draw.text((left + 6, bottom + 6), name, fill=(0, 0, 0, 255))
-
-    img_io = BytesIO()
-    pil_image.save(img_io, 'JPEG')
-    img_io.seek(0)
-    
-    return base64.b64encode(img_io.getvalue()).decode('ascii'), recognized_students
 
 # Route handlers
 @app.route('/')
