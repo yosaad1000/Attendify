@@ -14,7 +14,8 @@ from datetime import date
 import firebase_admin
 from firebase_admin import credentials, firestore
 from google.cloud.firestore_v1.base_query import FieldFilter
-from datetime import datetime
+from datetime import datetime, timedelta
+import time
 import uuid
 import threading
 
@@ -238,6 +239,117 @@ def register_student():
 
     return render_template('register.html')
 
+class SessionManager:
+    def __init__(self, cleanup_interval=300, pending_ttl=900):
+        self.sessions = {}
+        self.lock = threading.RLock()  # Reentrant lock for thread safety
+        self.cleanup_interval = cleanup_interval  # Cleanup every 5 minutes
+        self.pending_ttl = pending_ttl  # Pending/incomplete sessions expire after 15 minutes
+        
+        # Start the cleanup thread for abandoned sessions
+        self.cleanup_thread = threading.Thread(target=self._cleanup_abandoned_sessions, daemon=True)
+        self.cleanup_thread.start()
+    
+    def create_session(self, image_data):
+        """Create a new processing session"""
+        print("Creating new session")
+        with self.lock:
+            session_id = str(uuid.uuid4())
+            self.sessions[session_id] = {
+                'image': image_data,
+                'processed_faces': [],
+                'status': 'processing',
+                'created_at': datetime.now(),
+                'last_accessed': datetime.now(),
+                'viewed_count': 0  # Track how many times the completed result has been viewed
+            }
+            return session_id
+    
+    def get_session(self, session_id):
+        """Get session data and update last accessed time"""
+        print("Getting session data")
+        with self.lock:
+            if session_id not in self.sessions:
+                return None
+            
+            # Update last accessed time
+            session_data = self.sessions[session_id]
+            session_data['last_accessed'] = datetime.now()
+            
+            # If session is completed, increment the viewed counter
+            if session_data['status'] == 'completed':
+                session_data['viewed_count'] += 1
+                
+                # If it's been viewed 3 times after completion, mark for cleanup
+                # This gives the frontend enough time to get the final result
+                if session_data['viewed_count'] >= 3:
+                    self._mark_for_cleanup(session_id)
+                    
+            return session_data
+    
+    def update_session(self, session_id, updates):
+        """Update session with new data"""
+        print("Updating session data")
+        with self.lock:
+            if session_id not in self.sessions:
+                return False
+            
+            # Update the session data
+            session_data = self.sessions[session_id]
+            for key, value in updates.items():
+                if key != 'created_at':  # Don't allow changing creation time
+                    session_data[key] = value
+            
+            # Update last accessed time
+            session_data['last_accessed'] = datetime.now()
+            
+            # If status is being set to completed, handle completion
+            if updates.get('status') == 'completed':
+                # Reset viewed count when marking complete
+                session_data['viewed_count'] = 0
+            
+            return True
+    
+    def _mark_for_cleanup(self, session_id):
+        """Mark a session for cleanup or remove it immediately"""
+        print("Marking session for cleanup")
+        # Remove immediately
+        if session_id in self.sessions:
+            del self.sessions[session_id]
+            print(f"Session {session_id} has been removed after completion")
+    
+    def _cleanup_abandoned_sessions(self):
+        """Background thread to clean up abandoned sessions"""
+        print("Starting session cleanup thread")
+        while True:
+            time.sleep(self.cleanup_interval)
+            try:
+                now = datetime.now()
+                expired_sessions = []
+                
+                with self.lock:
+                    # Find abandoned sessions (started but never completed)
+                    for session_id, data in self.sessions.items():
+                        # Only clean up sessions that are still processing but haven't been
+                        # accessed in a while (likely abandoned uploads)
+                        if (data['status'] == 'processing' and 
+                            now - data['last_accessed'] > timedelta(seconds=self.pending_ttl)):
+                            expired_sessions.append(session_id)
+                    
+                    # Delete expired sessions
+                    for session_id in expired_sessions:
+                        del self.sessions[session_id]
+                
+                if expired_sessions:
+                    print(f"Cleaned up {len(expired_sessions)} abandoned sessions")
+            except Exception as e:
+                print(f"Error in session cleanup: {str(e)}")
+
+
+# Create a global instance of the session manager
+session_manager = SessionManager()
+
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -258,16 +370,11 @@ def upload_file():
 
 def start_processing_image(image_data):
     """Start processing the image in the background and return a session ID"""
-    global processing_sessions
-    session_id = str(uuid.uuid4())
-    # Store the original image for this session
+    # Load the image
     np_image = face_recognition.load_image_file(BytesIO(image_data))
-    # Store in a global dictionary or database
-    processing_sessions[session_id] = {
-        'image': np_image,
-        'processed_faces': [],
-        'status': 'processing'
-    }
+    
+    # Create a new session
+    session_id = session_manager.create_session(np_image)
     
     # Start a background thread to process faces
     threading.Thread(target=process_faces_background, args=(session_id,)).start()
@@ -277,89 +384,110 @@ def start_processing_image(image_data):
 
 def process_faces_background(session_id):
     """Process faces in the background and update results progressively"""
-    global processing_sessions
-    session_data = processing_sessions[session_id]
-    np_image = session_data['image']
-    
-    # Detect all face locations first
-    face_locations = face_recognition.face_locations(np_image)
-    
-    if not face_locations:
-        session_data['status'] = 'completed'
-        session_data['error'] = 'No faces detected'
+    # Get the session data
+    session_data = session_manager.get_session(session_id)
+    if not session_data:
         return
     
-    # Create a copy of the image for drawing
-    pil_image = Image.fromarray(np_image)
-    draw = ImageDraw.Draw(pil_image)
+    np_image = session_data['image']
     
-    # Process each face one by one
-    for i, location in enumerate(face_locations):
-        top, right, bottom, left = location
+    try:
+        # Detect all face locations first
+        face_locations = face_recognition.face_locations(np_image)
         
-        # Get face encoding
-        face_encoding = face_recognition.face_encodings(np_image, [location])[0]
+        if not face_locations:
+            session_manager.update_session(session_id, {
+                'status': 'completed',
+                'error': 'No faces detected'
+            })
+            return
         
-        # Query student database
-        results = student_index.query(
-            vector=face_encoding.tolist(),
-            top_k=1,
-            include_metadata=True
-        )
+        # Create a copy of the image for drawing
+        pil_image = Image.fromarray(np_image)
+        draw = ImageDraw.Draw(pil_image)
         
-        # Process results
-        if results['matches'] and results['matches'][0]['score'] < 0.25:
-            match = results['matches'][0]
-            student_id = match['id']
-            name = match['metadata'].get('name', 'Unknown')
-            log_attendance(student_id)
-            color = (0, 255, 0)  # Green
-        else:
-            student_id = None
-            name = "Unknown"
-            color = (255, 0, 0)  # Red
+        # Process each face one by one
+        processed_faces = []
+        for i, location in enumerate(face_locations):
+            top, right, bottom, left = location
+            
+            # Get face encoding
+            face_encoding = face_recognition.face_encodings(np_image, [location])[0]
+            
+            # Query student database
+            results = student_index.query(
+                vector=face_encoding.tolist(),
+                top_k=1,
+                include_metadata=True
+            )
+            
+            # Process results
+            if results['matches'] and results['matches'][0]['score'] < 0.25:
+                match = results['matches'][0]
+                student_id = match['id']
+                name = match['metadata'].get('name', 'Unknown')
+                log_attendance(student_id)
+                color = (0, 255, 0)  # Green
+            else:
+                student_id = None
+                name = "Unknown"
+                color = (255, 0, 0)  # Red
+            
+            # Draw rectangle and name on the image
+            draw.rectangle(((left, top), (right, bottom)), outline=color, width=5)
+            draw.text((left + 6, bottom + 6), name, fill=(0, 0, 0, 255))
+            
+            # Create a cropped image of just this face
+            face_img = pil_image.crop((left, top, right, bottom))
+            face_img_io = BytesIO()
+            face_img.save(face_img_io, 'JPEG')
+            face_img_io.seek(0)
+            face_img_data = base64.b64encode(face_img_io.getvalue()).decode('ascii')
+            
+            # Save the processed face data
+            face_data = {
+                'id': i,
+                'student_id': student_id,
+                'name': name, 
+                'face_img': face_img_data,
+                'processed_at': datetime.now().isoformat()
+            }
+            
+            # Add to our list of processed faces
+            processed_faces.append(face_data)
+            
+            # Update the session with the new face
+            session_manager.update_session(session_id, {
+                'processed_faces': processed_faces
+            })
         
-        # Draw rectangle and name on the image
-        draw.rectangle(((left, top), (right, bottom)), outline=color, width=5)
-        draw.text((left + 6, bottom + 6), name, fill=(0, 0, 0, 255))
+        # Save the full processed image
+        full_img_io = BytesIO()
+        pil_image.save(full_img_io, 'JPEG')
+        full_img_io.seek(0)
+        full_image_data = base64.b64encode(full_img_io.getvalue()).decode('ascii')
         
-        # Create a cropped image of just this face
-        face_img = pil_image.crop((left, top, right, bottom))
-        face_img_io = BytesIO()
-        face_img.save(face_img_io, 'JPEG')
-        face_img_io.seek(0)
-        face_img_data = base64.b64encode(face_img_io.getvalue()).decode('ascii')
+        # Mark processing as completed
+        session_manager.update_session(session_id, {
+            'status': 'completed',
+            'full_image': full_image_data
+        })
         
-        # Save the processed face data
-        face_data = {
-            'id': i,
-            'student_id': student_id,
-            'name': name, 
-            'face_img': face_img_data,
-            'processed_at': datetime.now().isoformat()
-        }
-        
-        # Update the session data
-        session_data['processed_faces'].append(face_data)
-        
-    # Save the full processed image
-    full_img_io = BytesIO()
-    pil_image.save(full_img_io, 'JPEG')
-    full_img_io.seek(0)
-    session_data['full_image'] = base64.b64encode(full_img_io.getvalue()).decode('ascii')
-    
-    # Mark processing as completed
-    session_data['status'] = 'completed'
+    except Exception as e:
+        # If an error occurs, mark the session as failed
+        session_manager.update_session(session_id, {
+            'status': 'error',
+            'error': str(e)
+        })
 
 
 @app.route('/face_status/<session_id>')
 def face_status(session_id):
     """API endpoint to get the current status of face processing"""
-    global processing_sessions
-    if session_id not in processing_sessions:
+    session_data = session_manager.get_session(session_id)
+    if not session_data:
         return jsonify({'error': 'Session not found'}), 404
     
-    session_data = processing_sessions[session_id]
     return jsonify({
         'status': session_data['status'],
         'processed_faces': session_data['processed_faces'],
