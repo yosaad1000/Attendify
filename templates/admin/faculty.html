@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Faculty{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Manage Faculty</h2>
+    
+    <!-- Faculty Form -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Add New Faculty</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('admin_faculty') }}">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="faculty_id">Faculty ID</label>
+                            <input type="text" class="form-control" id="faculty_id" name="faculty_id" required>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="name">Name</label>
+                            <input type="text" class="form-control" id="name" name="name" required>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Departments</label>
+                            <select multiple class="form-control" name="departments">
+                                {% for dept in departments %}
+                                <option value="{{ dept.dept_id }}">{{ dept.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple departments</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Subjects</label>
+                            <select multiple class="form-control" name="subjects">
+                                {% for subject in subjects %}
+                                <option value="{{ subject.subject_id }}">{{ subject.name }} ({{ subject.code }})</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple subjects</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary mt-3">Add Faculty</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Faculty List -->
+    <div class="card">
+        <div class="card-header">
+            <h5>Existing Faculty</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Faculty ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Departments</th>
+                        <th>Subjects</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in faculty %}
+                    <tr>
+                        <td>{{ f.faculty_id }}</td>
+                        <td>{{ f.name }}</td>
+                        <td>{{ f.email }}</td>
+                        <td>
+                            {% for dept_id in f.departments %}
+                                {% for dept in departments %}
+                                    {% if dept.dept_id == dept_id %}
+                                        <span class="badge bg-primary">{{ dept.name }}</span>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% for subject_id in f.subjects %}
+                                {% for subject in subjects %}
+                                    {% if subject.subject_id == subject_id %}
+                                        <span class="badge bg-info">{{ subject.name }}</span>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

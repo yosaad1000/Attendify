@@ -1,20 +1,26 @@
 import base64
 import logging
-import numpy as np
+import uuid
+import threading
+from datetime import datetime, date
 from io import BytesIO
-from PIL import Image, ImageDraw
-import face_recognition
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, jsonify
 from werkzeug.utils import secure_filename
-import firebase_admin
-from firebase_admin import credentials, firestore
-from google.cloud.firestore_v1.base_query import FieldFilter
-from datetime import datetime, timedelta
-from services.session_manager import SessionManager
+from PIL import Image, ImageDraw
 from config import config
-from pinecone import Pinecone, ServerlessSpec
-import threading
+from services.face_service import FaceService
+from services.storage_service import StorageService
+from services.attendance_service import AttendanceService
+from services.session_manager import SessionManager
+from models.student import Student
+from models.department import Department
+from models.faculty import Faculty
+from models.subject import Subject
+from models.student_subject import StudentSubject
+from models.attendance import Attendance
+from models.admin import Admin
 
+# Initialize Flask app
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 app.config['MAX_CONTENT_LENGTH'] = config.MAX_CONTENT_LENGTH
@@ -23,81 +29,200 @@ app.config['MAX_CONTENT_LENGTH'] = config.MAX_CONTENT_LENGTH
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize Firebase
-cred = credentials.Certificate(config.FIREBASE_CREDENTIALS)
-firebase_admin.initialize_app(cred)
-firestore_db = firestore.client()
-
-# Initialize Pinecone
-pc = Pinecone(api_key=config.PINECONE_API_KEY)
-student_index = pc.Index(config.PINECONE_INDEX_NAME)
-
-# Create Pinecone index if it doesn't exist
-if config.PINECONE_INDEX_NAME not in pc.list_indexes().names():
-    pc.create_index(
-        name=config.PINECONE_INDEX_NAME,
-        dimension=config.FACE_ENCODING_DIMENSION,
-        metric=config.FACE_METRIC,
-        spec=ServerlessSpec(
-            cloud=config.PINECONE_ENV,
-            region=config.PINECONE_REGION
-        )
-    )
-
-
-
-# Create a global instance of the session manager
+# Initialize services
+storage_service = StorageService()
+face_service = FaceService()
+attendance_service = AttendanceService()
 session_manager = SessionManager()
 
-def log_attendance(student_id):
-    """Log attendance in Firestore if not already logged today"""
-    try:
-        today = date.today().isoformat()
-        attendance_ref = firestore_db.collection('attendance')
-        
-        query = (attendance_ref
-                .where(filter=FieldFilter('student_id', '==', student_id))
-                .where(filter=FieldFilter('attendance_date', '==', today))
-                .limit(1))
-        
-        if not query.get():
-            attendance_ref.add({
-                'student_id': student_id,
-                'timestamp': firestore.SERVER_TIMESTAMP,
-                'attendance_date': today
-            })
-            return True
-        return False
-    except Exception as e:
-        logger.error(f"Error logging attendance: {e}")
-        return False
-
+# Helper functions
 def allowed_file(filename):
+    """Check if file has allowed extension"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in config.ALLOWED_EXTENSIONS
 
 def process_image_for_registration(image_data, student_id, name):
     """Process image for student registration"""
-    np_image = face_recognition.load_image_file(BytesIO(image_data))
-    face_locations = face_recognition.face_locations(np_image)
-    
-    if not face_locations:
-        raise ValueError("No faces found in the image")
-    
-    face_encodings = face_recognition.face_encodings(np_image, face_locations)
-    if not face_encodings:
-        raise ValueError("No face encodings found")
-    
-    face_encoding = face_encodings[0]
-    face_encoding_np = np.array(face_encoding, dtype=np.float32)
+    try:
+        # Detect faces in the image
+        np_image, face_locations = face_service.detect_faces(image_data)
+        
+        if not face_locations:
+            raise ValueError("No faces found in the image")
+        
 
-    student_index.upsert(vectors=[{
-        "id": student_id,
-        "values": face_encoding_np.tolist(),
-        "metadata": {"name": name, "student_id": student_id}
-    }])
+        if len(face_locations) > 1:
+            raise ValueError("Multiple faces found in the image. Please upload an image with only one face.")
+        # Use the first face
+        face_encoding = face_service.encode_face(np_image, face_locations[0])
+        
+        # Store face encoding in Pinecone
+        storage_service.store_student_face(student_id, name, face_encoding)
+        
+        return True
+    except Exception as e:
+        logger.error(f"Error processing image for registration: {e}")
+        raise
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#######################################################################################################################################
+def start_processing_image(image_data):
+    """Start processing image in background and return session ID"""
+    try:
+        # Create a new session with binary image data
+        # Note: SessionManager.create_session only takes image_data as argument
+        session_id = session_manager.create_session(image_data)
+        
+        # Start a background thread to process faces
+        threading.Thread(target=process_faces_background, args=(session_id,)).start()
+        
+        return session_id
+    except Exception as e:
+        logger.error(f"Error starting image processing: {e}")
+        raise
+
+def process_faces_background(session_id):
+    """Process faces in background and update session progressively"""
+    session_data = session_manager.get_session(session_id)
+    if not session_data:
+        logger.error(f"Session {session_id} not found")
+        return
+    
+    try:
+        # Get the image data from the session
+        image_data = session_data['image']
+        
+        # Detect faces in the image using FaceService
+        np_image, face_locations = face_service.detect_faces(image_data)
+        
+        if not face_locations:
+            session_manager.update_session(session_id, {
+                'status': 'completed',
+                'error': 'No faces detected in the image'
+            })
+            logger.warning(f"No faces detected in session {session_id}")
+            return
+        
+        # Process each face
+        processed_faces = []
+        
+        # Get metadata from session
+        metadata = session_data.get('metadata', {})
+        subject_id = metadata.get('subject_id', 'default_subject')
+        faculty_id = metadata.get('faculty_id')
+        
+        # Track names and student_ids for later drawing all faces at once
+        all_names = []
+        all_student_ids = []
+        
+        for i, face_location in enumerate(face_locations):
+            try:
+                # Get face encoding using FaceService
+                face_encoding = face_service.encode_face(np_image, face_location)
+                
+                # Find matching face using StorageService
+                student_id, name, score = storage_service.find_matching_face(face_encoding)
+                
+                # Add to tracking lists
+                all_names.append(name)
+                all_student_ids.append(student_id)
+                
+                # Crop face image
+                top, right, bottom, left = face_location
+                face_crop = face_service.crop_face(Image.fromarray(np_image), face_location)
+                
+                # Add to processed faces
+                processed_faces.append({
+                    'id': i,
+                    'student_id': student_id,
+                    'name': name,
+                    'face_img': face_crop,
+                    'processed_at': datetime.now().isoformat()
+                })
+                
+                # Update session with new face - important for real-time updates
+                session_manager.update_session(session_id, {
+                    'processed_faces': processed_faces,
+                    'status': 'processing'  # Ensure status is set
+                })
+                
+                # Add a small delay to make updates visible in UI
+                time.sleep(0.2)
+                
+            except Exception as e:
+                logger.error(f"Error processing face {i}: {str(e)}")
+                # Continue with next face
+        
+        # Draw all face rectangles at once using FaceService
+        pil_image_with_faces = face_service.draw_face_rectangles(np_image, face_locations, all_names, all_student_ids)
+        
+        # Convert processed image to base64
+        full_image_data = face_service.image_to_base64(pil_image_with_faces)
+        
+        # Mark processing as completed
+        session_manager.update_session(session_id, {
+            'status': 'completed',
+            'full_image': full_image_data,
+            'total_faces': len(processed_faces)
+        })
+        logger.info(f"Completed processing session {session_id} with {len(processed_faces)} faces")
+        
+    except Exception as e:
+        logger.error(f"Error in face processing for session {session_id}: {str(e)}")
+        session_manager.update_session(session_id, {
+            'status': 'error',
+            'error': str(e)
+        })
+#######################################################################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # Route handlers
+
 @app.route('/')
 def attendify():
     return render_template('attendify.html')
@@ -113,47 +238,56 @@ def uploading():
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
+        # In a real app, you would validate and store user credentials
         return redirect(url_for('index'))
     return render_template('signup.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
+        # In a real app, you would validate credentials
         return redirect(url_for('index'))
     return render_template('login.html')
 
 @app.route('/dashboard')
 def dashboard():
     try:
-        # Get all unique attendance dates
-        attendance_dates = {doc.to_dict()['attendance_date'] 
-                          for doc in firestore_db.collection('attendance').stream()}
-        total_days = len(attendance_dates)
-
-        # Get all students with attendance data
+        # Get all departments
+        departments = storage_service.get_all_departments()
+        
+        # Get all students
+        students = storage_service.get_all_students()
+        
+        # Get all subjects
+        subjects = storage_service.get_all_subjects()
+        
+        # Get attendance summaries for all students
         attendance_results = []
-        for student in firestore_db.collection('students').stream():
-            student_data = student.to_dict()
-            student_id = student_data['student_id']
-            
-            present_dates = {att.to_dict()['attendance_date'] 
-                           for att in firestore_db.collection('attendance')
-                           .where(filter=FieldFilter('student_id', '==', student_id)).stream()}
-            
-            days_present = len(present_dates)
-            percentage = round((days_present / total_days * 100), 2) if total_days > 0 else 0
-
+        for student in students:
+            summary = attendance_service.get_student_attendance_summary(student.student_id)
             attendance_results.append({
-                'student_id': student_id,
-                'name': student_data['name'],
-                'days_present': days_present,
-                'total_days': total_days,
-                'percentage': percentage
+                'student_id': student.student_id,
+                'name': student.name,
+                'department': next((d.name for d in departments if d.dept_id == student.department_id), 'Unknown'),
+                'days_present': summary['present_count'],
+                'total_days': summary['total_classes'],
+                'percentage': summary['attendance_percentage']
             })
-
+        
+        # Calculate total number of attendance days
+        attendance_dates = set()
+        for att in storage_service.db.collection('attendance').stream():
+            att_data = att.to_dict()
+            if 'date' in att_data:
+                attendance_dates.add(att_data['date'])
+        
+        total_days = len(attendance_dates)
+        
         return render_template('dashboard.html', 
-                           attendance_data=attendance_results, 
-                           total_days=total_days)
+                             attendance_data=attendance_results,
+                             total_days=total_days,
+                             departments=departments,
+                             subjects=subjects)
     except Exception as e:
         logger.error(f"Dashboard error: {str(e)}")
         return f"An error occurred: {e}", 500
@@ -163,10 +297,13 @@ def register_student():
     if request.method == 'POST':
         name = request.form['name']
         student_id = request.form['student_id']
+        email = request.form.get('email', '')
+        department_id = request.form.get('department_id', '')
+        batch_year = request.form.get('batch_year', datetime.now().year)
         
-        if firestore_db.collection('students').document(student_id).get().exists:
+        if storage_service.student_exists(student_id):
             return "Student ID already registered", 400
-
+        
         # Get image from either file upload or camera capture
         image_data = None
         if 'file' in request.files:
@@ -175,25 +312,49 @@ def register_student():
                 image_data = file.read()
         elif 'captured_image' in request.form:
             image_data = base64.b64decode(request.form['captured_image'].split(',')[1])
-
+        
         if not image_data:
             return "No image provided", 400
-
+        
         try:
+            # Process face for recognition
             process_image_for_registration(image_data, student_id, name)
-            firestore_db.collection('students').document(student_id).set({
-                'student_id': student_id,
-                'name': name
-            })
+            
+            # Create and store student record
+            student = Student(
+                student_id=student_id,
+                name=name,
+                email=email,
+                department_id=department_id,
+                batch_year=batch_year
+            )
+            storage_service.add_student(student)
+            
             return redirect(url_for('index'))
         except Exception as e:
             logger.error(f"Registration error: {str(e)}")
             return f"Error processing registration: {str(e)}", 500
+    
+    # GET request: show registration form
+    departments = storage_service.get_all_departments()
+    return render_template('register.html', departments=departments)
 
-    return render_template('register.html')
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+#################################################################################################################################
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -202,151 +363,358 @@ def upload_file():
     file = request.files['file']
     if not file or not allowed_file(file.filename):
         return "Invalid file type", 400
-
+    
+    subject_id = request.form.get('subject_id', 'default_subject')
+    faculty_id = request.form.get('faculty_id')
+    
     try:
-        # Process the image and return a session ID
-        session_id = start_processing_image(file.read())
+        # Read the file data
+        image_data = file.read()
+        
+        # Start processing and get session ID
+        session_id = start_processing_image(image_data)
+        
+        # Store subject and faculty info in session metadata
+        session_manager.update_session(session_id, {
+            'metadata': {
+                'subject_id': subject_id,
+                'faculty_id': faculty_id
+            }
+        })
+        
+        # Add debug log
+        logger.info(f"Created session {session_id} and started processing")
+        
         return render_template('processing.html', session_id=session_id)
     except Exception as e:
         logger.error(f"Upload error: {str(e)}")
         return f"Error processing image: {str(e)}", 500
 
-
-def start_processing_image(image_data):
-    """Start processing the image in the background and return a session ID"""
-    # Load the image
-    np_image = face_recognition.load_image_file(BytesIO(image_data))
+@app.route('/process-captured-image', methods=['POST'])
+def process_captured_image():
+    # Get the base64 image data from the form
+    captured_image_data = request.form.get('captured_image')
+    subject_id = request.form.get('subject_id', 'default_subject')
+    faculty_id = request.form.get('faculty_id')
     
-    # Create a new session
-    session_id = session_manager.create_session(np_image)
-    
-    # Start a background thread to process faces
-    threading.Thread(target=process_faces_background, args=(session_id,)).start()
-    
-    return session_id
-
-
-def process_faces_background(session_id):
-    """Process faces in the background and update results progressively"""
-    # Get the session data
-    session_data = session_manager.get_session(session_id)
-    if not session_data:
-        return
-    
-    np_image = session_data['image']
+    if not captured_image_data:
+        return "No image data received", 400
     
     try:
-        # Detect all face locations first
-        face_locations = face_recognition.face_locations(np_image)
+        # Remove the data URL prefix if present
+        if 'base64,' in captured_image_data:
+            image_data = captured_image_data.split('base64,')[1]
+        else:
+            image_data = captured_image_data
+            
+        # Convert base64 to binary
+        binary_image = base64.b64decode(image_data)
         
-        if not face_locations:
-            session_manager.update_session(session_id, {
-                'status': 'completed',
-                'error': 'No faces detected'
-            })
-            return
+        # Start processing and get session ID
+        session_id = start_processing_image(binary_image)
         
-        # Create a copy of the image for drawing
-        pil_image = Image.fromarray(np_image)
-        draw = ImageDraw.Draw(pil_image)
-        
-        # Process each face one by one
-        processed_faces = []
-        for i, location in enumerate(face_locations):
-            top, right, bottom, left = location
-            
-            # Get face encoding
-            face_encoding = face_recognition.face_encodings(np_image, [location])[0]
-            
-            # Query student database
-            results = student_index.query(
-                vector=face_encoding.tolist(),
-                top_k=1,
-                include_metadata=True
-            )
-            
-            # Process results
-            if results['matches'] and results['matches'][0]['score'] < config.FACE_THRESHOLD:
-                match = results['matches'][0]
-                student_id = match['id']
-                name = match['metadata'].get('name', 'Unknown')
-                log_attendance(student_id)
-                color = (0, 255, 0)  # Green
-            else:
-                student_id = None
-                name = "Unknown"
-                color = (255, 0, 0)  # Red
-            
-            # Draw rectangle and name on the image
-            draw.rectangle(((left, top), (right, bottom)), outline=color, width=5)
-            draw.text((left + 6, bottom + 6), name, fill=(0, 0, 0, 255))
-            
-            # Create a cropped image of just this face
-            face_img = pil_image.crop((left, top, right, bottom))
-            face_img_io = BytesIO()
-            face_img.save(face_img_io, 'JPEG')
-            face_img_io.seek(0)
-            face_img_data = base64.b64encode(face_img_io.getvalue()).decode('ascii')
-            
-            # Save the processed face data
-            face_data = {
-                'id': i,
-                'student_id': student_id,
-                'name': name, 
-                'face_img': face_img_data,
-                'processed_at': datetime.now().isoformat()
+        # Store subject and faculty info in session metadata
+        session_manager.update_session(session_id, {
+            'metadata': {
+                'subject_id': subject_id,
+                'faculty_id': faculty_id
             }
-            
-            # Add to our list of processed faces
-            processed_faces.append(face_data)
-            
-            # Update the session with the new face
-            session_manager.update_session(session_id, {
-                'processed_faces': processed_faces
-            })
-        
-        # Save the full processed image
-        full_img_io = BytesIO()
-        pil_image.save(full_img_io, 'JPEG')
-        full_img_io.seek(0)
-        full_image_data = base64.b64encode(full_img_io.getvalue()).decode('ascii')
-        
-        # Mark processing as completed
-        session_manager.update_session(session_id, {
-            'status': 'completed',
-            'full_image': full_image_data
         })
         
+        return render_template('processing.html', session_id=session_id)
     except Exception as e:
-        # If an error occurs, mark the session as failed
-        session_manager.update_session(session_id, {
-            'status': 'error',
-            'error': str(e)
-        })
+        logger.error(f"Capture processing error: {str(e)}")
+        return f"Error processing captured image: {str(e)}", 500
 
 
 @app.route('/face_status/<session_id>')
 def face_status(session_id):
-    """API endpoint to get the current status of face processing"""
+    """API endpoint to get current status of face processing"""
     session_data = session_manager.get_session(session_id)
     if not session_data:
         return jsonify({'error': 'Session not found'}), 404
     
-    return jsonify({
-        'status': session_data['status'],
-        'processed_faces': session_data['processed_faces'],
+    response = {
+        'status': session_data.get('status', 'unknown'),
+        'processed_faces': session_data.get('processed_faces', []),
         'error': session_data.get('error'),
-        'full_image': session_data.get('full_image') if session_data['status'] == 'completed' else None,
+        'full_image': session_data.get('full_image') if session_data.get('status') == 'completed' else None,
         'total_faces': len(session_data.get('processed_faces', []))
-    })
+    }
+    
+    logger.debug(f"Status response for session {session_id}: status={response['status']}, faces={response['total_faces']}")
+    
+    return jsonify(response)
 
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory('', filename)
+#######################################################################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 @app.route('/capture')
 def capture():
-    return render_template('capture.html')
+    subjects = storage_service.get_all_subjects()
+    return render_template('capture.html', subjects=subjects)
+
+# Admin routes
+@app.route('/admin/departments', methods=['GET', 'POST'])
+def admin_departments():
+    if request.method == 'POST':
+        dept_id = request.form['dept_id']
+        name = request.form['name']
+        hod = request.form.get('hod')
+        
+        department = Department(dept_id=dept_id, name=name, hod=hod)
+        storage_service.add_department(department)
+        
+        return redirect(url_for('admin_departments'))
+    
+    departments = storage_service.get_all_departments()
+    faculty = storage_service.db.collection('faculty').stream()
+    faculty_list = [Faculty.from_dict(doc.to_dict()) for doc in faculty]
+    
+    return render_template('admin/departments.html', departments=departments, faculty=faculty_list)
+
+@app.route('/admin/faculty', methods=['GET', 'POST'])
+def admin_faculty():
+    if request.method == 'POST':
+        faculty_id = request.form['faculty_id']
+        name = request.form['name']
+        email = request.form['email']
+        departments = request.form.getlist('departments')
+        subjects = request.form.getlist('subjects')
+        
+        faculty = Faculty(
+            faculty_id=faculty_id,
+            name=name, 
+            email=email,
+            departments=departments,
+            subjects=subjects
+        )
+        storage_service.add_faculty(faculty)
+        
+        return redirect(url_for('admin_faculty'))
+    
+    faculty_list = [Faculty.from_dict(doc.to_dict()) for doc in storage_service.db.collection('faculty').stream()]
+    departments = storage_service.get_all_departments()
+    subjects = storage_service.get_all_subjects()
+    
+    return render_template('admin/faculty.html', 
+                         faculty=faculty_list, 
+                         departments=departments,
+                         subjects=subjects)
+
+@app.route('/admin/subjects', methods=['GET', 'POST'])
+def admin_subjects():
+    if request.method == 'POST':
+        subject_id = request.form['subject_id']
+        name = request.form['name']
+        code = request.form['code']
+        department_id = request.form['department_id']
+        faculty_ids = request.form.getlist('faculty_ids')
+        semester = request.form.get('semester')
+        credits = request.form.get('credits')
+        is_elective = 'is_elective' in request.form
+        
+        subject = Subject(
+            subject_id=subject_id,
+            name=name,
+            code=code,
+            department_id=department_id,
+            faculty_ids=faculty_ids,
+            semester=semester,
+            credits=credits,
+            is_elective=is_elective
+        )
+        storage_service.add_subject(subject)
+        
+        return redirect(url_for('admin_subjects'))
+    
+    subjects = storage_service.get_all_subjects()
+    departments = storage_service.get_all_departments()
+    faculty = [Faculty.from_dict(doc.to_dict()) for doc in storage_service.db.collection('faculty').stream()]
+    
+    return render_template('admin/subjects.html', 
+                         subjects=subjects,
+                         departments=departments,
+                         faculty=faculty)
+
+@app.route('/admin/enroll_student', methods=['GET', 'POST'])
+def admin_enroll_student():
+    if request.method == 'POST':
+        student_id = request.form['student_id']
+        subject_id = request.form['subject_id']
+        academic_year = request.form['academic_year']
+        semester = request.form['semester']
+        attempt = int(request.form.get('attempt', 1))
+        
+        # Create a unique ID for this enrollment
+        enrollment_id = f"enr_{uuid.uuid4().hex}"
+        
+        student_subject = StudentSubject(
+            id=enrollment_id,
+            student_id=student_id,
+            subject_id=subject_id,
+            academic_year=academic_year,
+            semester=semester,
+            attempt=attempt
+        )
+        storage_service.enroll_student_in_subject(student_subject)
+        
+        return redirect(url_for('admin_enroll_student'))
+    
+    students = storage_service.get_all_students()
+    subjects = storage_service.get_all_subjects()
+    enrollments = [StudentSubject.from_dict(doc.to_dict()) 
+                  for doc in storage_service.db.collection('student_subjects').stream()]
+    
+    # Get student and subject names for display
+    student_dict = {s.student_id: s.name for s in students}
+    subject_dict = {s.subject_id: s.name for s in subjects}
+    
+    return render_template('admin/enroll_student.html',
+                         students=students,
+                         subjects=subjects,
+                         enrollments=enrollments,
+                         student_dict=student_dict,
+                         subject_dict=subject_dict)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#######################################################################################################################################
+# @app.route('/upload-page')
+# def upload_page():
+#     # Get subject and faculty data for the form if needed
+#     subjects = storage_service.get_all_subjects()
+#     faculty = [Faculty.from_dict(doc.to_dict()) for doc in storage_service.db.collection('faculty').stream()]
+    
+#     return render_template('upload.html', subjects=subjects, faculty=faculty)
+
+@app.route('/mark-attendance')
+def mark_attendance():
+    # Get subject and faculty data for the form
+    subjects = storage_service.get_all_subjects()
+    faculty = [Faculty.from_dict(doc.to_dict()) for doc in storage_service.db.collection('faculty').stream()]
+    
+    return render_template('teacher/mark_attendance.html', subjects=subjects, faculty=faculty)
+#######################################################################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@app.route('/student/view_attendance/<student_id>')
+def student_view_attendance(student_id):
+    student = storage_service.db.collection('students').document(student_id).get()
+    if not student.exists:
+        return "Student not found", 404
+    
+    student_data = Student.from_dict(student.to_dict())
+    
+    # Get all subjects the student is enrolled in
+    enrollments = storage_service.db.collection('student_subjects') \
+        .where(storage_service.db.field_path('student_id'), '==', student_id) \
+        .stream()
+    
+    subject_ids = [enroll.to_dict()['subject_id'] for enroll in enrollments]
+    
+    # Get attendance for each subject
+    attendance_data = []
+    for subject_id in subject_ids:
+        subject = storage_service.db.collection('subjects').document(subject_id).get()
+        if subject.exists:
+            subject_data = Subject.from_dict(subject.to_dict())
+            summary = attendance_service.get_student_attendance_summary(student_id, subject_id)
+            
+            attendance_data.append({
+                'subject_id': subject_id,
+                'subject_name': subject_data.name,
+                'subject_code': subject_data.code,
+                'days_present': summary['present_count'],
+                'total_days': summary['total_classes'],
+                'percentage': summary['attendance_percentage']
+            })
+    
+    return render_template('student/view_attendance.html', 
+                         student=student_data,
+                         attendance_data=attendance_data)
 
 if __name__ == '__main__':
     app.run(debug=True)

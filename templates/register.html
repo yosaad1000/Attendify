@@ -1,213 +1,141 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Attendify-New Register</title>
-    <style>
-        /* ✅ Base Styles */
-        body {
-            font-family: 'Arial', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f9f9f9;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
+{% extends "base.html" %}
 
-        .navbar {
-            background-color: #3b3b98;
-            color: #fff;
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-        }
+{% block title %}Register Student - Attendify{% endblock %}
 
-        .navbar a {
-            color: #fff;
-            text-decoration: none;
-            font-size: 1.2rem;
-            margin-left: 20px;
-        }
+{% block extra_styles %}
+<style>
+    /* Register-specific styles */
+    .content-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 20px;
+    }
 
-        .navbar a:hover {
-            text-decoration: underline;
-        }
+    .illustration {
+        text-align: center;
+        margin-bottom: 30px;
+    }
 
-        .footer {
-            background-color: #3b3b98;
-            color: #fff;
-            text-align: center;
-            padding: 10px 0;
-            font-size: 1rem;
-        }
+    .illustration img {
+        max-width: 100%;
+        height: auto;
+        max-height: 300px;
+        border-radius: 10px;
+        transition: 0.3s;
+    }
 
-        /* ✅ Centered Content Layout */
-        .content-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 40px 20px;
-        }
+    .form-container {
+        width: 100%;
+        max-width: 500px;
+        background: #fff;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transition: 0.3s;
+    }
 
-        .illustration {
-            text-align: center;
-            margin-bottom: 30px;
-        }
+    .form-container h2 {
+        text-align: center;
+        color: #2d2d7a;
+        margin-bottom: 20px;
+    }
 
-        .illustration img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 10px;
-            transition: 0.3s;
-        }
+    .form-container form label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+        color: #333;
+    }
 
-        /* ✅ Form Styling */
+    .form-container form input {
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 20px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        font-size: 1rem;
+        transition: 0.3s;
+    }
+
+    .form-container form select {
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 20px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        font-size: 1rem;
+        transition: 0.3s;
+    }
+
+    .form-container form input[type="submit"] {
+        background-color: #3b3b98;
+        color: #fff;
+        font-size: 1.2rem;
+        font-weight: bold;
+        border: none;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+
+    .form-container form input[type="submit"]:hover {
+        background-color: #2d2d7a;
+    }
+
+    .capture-button {
+        display: inline-block;
+        text-align: center;
+        background-color: #3b3b98;
+        color: #fff;
+        padding: 12px 20px;
+        font-size: 1rem;
+        border-radius: 5px;
+        text-decoration: none;
+        transition: 0.3s;
+        margin: 10px 0;
+        width: 100%;
+    }
+
+    .capture-button:hover {
+        background-color: #2d2d7a;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
         .form-container {
-            width: 100%;
-            max-width: 500px;
-            background: #fff;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            transition: 0.3s;
+            max-width: 90%;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .form-container {
+            max-width: 350px;
+            padding: 20px;
         }
 
-        .form-container h2 {
-            text-align: center;
-            color: #2d2d7a;
-            margin-bottom: 20px;
-        }
-
-        .form-container form label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .form-container form input {
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 20px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 1rem;
-            transition: 0.3s;
-        }
-
-        .form-container form input[type="submit"] {
-            background-color: #3b3b98;
-            color: #fff;
-            font-size: 1.2rem;
-            font-weight: bold;
-            border: none;
-            cursor: pointer;
-            transition: 0.3s;
-        }
-
-        .form-container form input[type="submit"]:hover {
-            background-color: #2d2d7a;
+        .form-container form input,
+        .form-container form select {
+            font-size: 0.9rem;
+            padding: 10px;
         }
 
         .capture-button {
-            display: inline-block;
-            text-align: center;
-            background-color: #3b3b98;
-            color: #fff;
-            padding: 12px 20px;
-            font-size: 1rem;
-            border-radius: 5px;
-            text-decoration: none;
-            transition: 0.3s;
-            margin: 10px 0;
+            font-size: 0.9rem;
+            padding: 10px 15px;
         }
 
-        .capture-button:hover {
-            background-color: #2d2d7a;
+        .illustration img {
+            max-height: 250px;
         }
+    }
+</style>
+{% endblock %}
 
-        /* ✅ Responsive Design */
-
-        /* For tablets */
-        @media (max-width: 1024px) {
-            .form-container {
-                max-width: 90%;
-                padding: 25px;
-            }
-        }
-
-        /* For phones */
-        @media (max-width: 768px) {
-            .navbar {
-                flex-direction: column;
-                text-align: center;
-            }
-
-            .navbar a {
-                margin: 10px 0;
-                font-size: 1rem;
-            }
-
-            .content-container {
-                padding: 20px;
-            }
-
-            .form-container {
-                max-width: 90%;
-                width: 100%;
-                padding: 20px;
-            }
-
-            .illustration img {
-                max-height: 300px;
-            }
-        }
-
-        /* For small phones */
-        @media (max-width: 480px) {
-            .form-container {
-                max-width: 350px;  /* ✅ Smaller form size */
-                padding: 20px;
-            }
-
-            .form-container form input {
-                font-size: 0.9rem;
-                padding: 10px;
-            }
-
-            .capture-button {
-                font-size: 0.9rem;
-                padding: 10px 15px;
-            }
-
-            .illustration img {
-                max-height: 250px;
-            }
-        }
-
-    </style>
-</head>
-<body>
-
-<div class="navbar">
-    <div class="logo">Attendify</div>
-    <div class="links">
-        <a href="{{ url_for('index') }}"> Home </a>
-        <a href="{{ url_for('register_student') }}">Register Student</a>
-        <a href="{{ url_for('uploading') }}">Upload Img</a>
-        <a href="{{ url_for('attendify') }}">Log Out</a>
-    </div>
-</div>
-
+{% block content %}
 <div class="content-container">
     <div class="illustration">
-        <img src="static/images/4155936.png" alt="Illustration">
+        <img src="{{ url_for('static', filename='images/4155936.png') }}" alt="Illustration">
     </div>
 
     <div class="form-container">
@@ -218,6 +146,20 @@
 
             <label for="student_id">Student ID:</label>
             <input type="text" name="student_id" id="student_id" required>
+            
+            <label for="email">Email:</label>
+            <input type="email" name="email" id="email">
+            
+            <label for="department_id">Department:</label>
+            <select name="department_id" id="department_id">
+                <option value="">Select Department</option>
+                {% for department in departments %}
+                <option value="{{ department.id }}">{{ department.name }}</option>
+                {% endfor %}
+            </select>
+            
+            <label for="batch_year">Batch Year:</label>
+            <input type="number" name="batch_year" id="batch_year" value="{{ current_year }}">
 
             <label for="file">Upload Student Image:</label>
             {% if captured_image %}
@@ -235,10 +177,7 @@
         </form>
     </div>
 </div>
+{% endblock %}
 
-<div class="footer">
-    &copy; 2024 Attendify. All rights reserved.
-</div>
 
-</body>
-</html>
+

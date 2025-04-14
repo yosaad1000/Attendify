@@ -157,7 +157,7 @@
     </div>
     
     <div class="control-buttons">
-        <a href="{{ url_for('index') }}" class="btn">Upload Another Image</a>
+        <a href="{{ url_for('mark_attendance') }}" class="btn">Mark More Attendance</a>
     </div>
 </div>
 
@@ -226,7 +226,7 @@
                         });
                         
                         // Update status message
-                        statusMessage.textContent = `Processed ${data.total_faces} faces...`;
+                        statusMessage.textContent = `Processed ${data.processed_faces.length} faces...`;
                     }
                     
                     // Check if processing is complete
@@ -240,6 +240,12 @@
                             fullImageContainer.style.display = 'block';
                         }
                         return;
+                    }
+                    
+                    // Add error handling for prolonged processing
+                    if (data.processed_faces && data.processed_faces.length === 0 && !data.error) {
+                        // Update message if nothing is happening for a while
+                        statusMessage.textContent = 'Processing image, please wait...';
                     }
                     
                     // Continue polling if not completed

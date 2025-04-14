@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Enroll Students{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Enroll Students in Subjects</h2>
+    
+    <!-- Enrollment Form -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>New Enrollment</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('admin_enroll_student') }}">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="student_id">Student</label>
+                            <select class="form-control" id="student_id" name="student_id" required>
+                                <option value="">-- Select Student --</option>
+                                {% for student in students %}
+                                <option value="{{ student.student_id }}">{{ student.name }} ({{ student.student_id }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="subject_id">Subject</label>
+                            <select class="form-control" id="subject_id" name="subject_id" required>
+                                <option value="">-- Select Subject --</option>
+                                {% for subject in subjects %}
+                                <option value="{{ subject.subject_id }}">{{ subject.name }} ({{ subject.code }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="academic_year">Academic Year</label>
+                            <input type="text" class="form-control" id="academic_year" name="academic_year" 
+                                   placeholder="2024-25" required>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="semester">Semester</label>
+                            <input type="number" class="form-control" id="semester" name="semester" min="1" max="8" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="attempt">Attempt</label>
+                            <input type="number" class="form-control" id="attempt" name="attempt" min="1" value="1">
+                            <small class="form-text text-muted">1 for first attempt, 2+ for repeat</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary mt-3">Enroll Student</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Enrollments List -->
+    <div class="card">
+        <div class="card-header">
+            <h5>Current Enrollments</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Subject</th>
+                        <th>Academic Year</th>
+                        <th>Semester</th>
+                        <th>Attempt</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for enrollment in enrollments %}
+                    <tr>
+                        <td>{{ student_dict.get(enrollment.student_id, "Unknown") }}</td>
+                        <td>{{ subject_dict.get(enrollment.subject_id, "Unknown") }}</td>
+                        <td>{{ enrollment.academic_year }}</td>
+                        <td>{{ enrollment.semester }}</td>
+                        <td>{{ enrollment.attempt }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
