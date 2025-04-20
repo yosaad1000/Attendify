@@ -626,11 +626,25 @@ def admin_enroll_student():
 
 @app.route('/mark-attendance')
 def mark_attendance():
-    # Get subject and faculty data for the form
-    subjects = storage_service.get_all_subjects()
-    faculty = [Faculty.from_dict(doc.to_dict()) for doc in storage_service.db.collection('faculty').stream()]
+    # Get subjects with their document IDs
+    subjects = []
+    subjects_ref = storage_service.db.collection('subjects').stream()
+    for doc in subjects_ref:
+        subject_data = doc.to_dict()
+        subject_data['id'] = doc.id  # 🔑 Add document ID
+        subjects.append(Subject.from_dict(subject_data))
     
-    return render_template('teacher/mark_attendance.html', subjects=subjects, faculty=faculty)
+    # Get faculty with document IDs
+    faculty = []
+    faculty_ref = storage_service.db.collection('faculty').stream()
+    for doc in faculty_ref:
+        faculty_data = doc.to_dict()
+        faculty_data['id'] = doc.id  # 🔑 Add document ID
+        faculty.append(Faculty.from_dict(faculty_data))
+
+    return render_template('teacher/mark_attendance.html', 
+                         subjects=subjects, 
+                         faculty=faculty)
 #######################################################################################################################################
 
 

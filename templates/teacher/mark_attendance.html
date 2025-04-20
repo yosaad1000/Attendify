@@ -186,9 +186,9 @@
             <div class="selector-group">
                 <label for="subject">Subject</label>
                 <select id="subject" name="subject_id" required>
-                    <option value="">-- Select Subject --</option>
+                    <option value="s">-- Select Subject --</option>
                     {% for subject in subjects %}
-                    <option value="{{ subject.id }}">{{ subject.name }} ({{ subject.code }})</option>
+                    <option value="{{ subject.subject_id }}">{{ subject.name }} ({{ subject.code }})</option>
                     {% endfor %}
                 </select>
             </div>
@@ -196,9 +196,9 @@
             <div class="selector-group">
                 <label for="faculty">Faculty</label>
                 <select id="faculty" name="faculty_id" required>
-                    <option value="">-- Select Faculty --</option>
+                    <option value="f">-- Select Faculty --</option>
                     {% for f in faculty %}
-                    <option value="{{ f.id }}">{{ f.name }}</option>
+                    <option value="{{ f.faculty_id }}">{{ f.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -286,19 +286,28 @@
         forms.forEach(formId => {
             const form = document.getElementById(formId);
             if (form) {
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                const subjectId = subjectSelect.value;
-                const facultyId = facultySelect.value;
-                
-                if (!subjectId || !facultyId) {
-                alert('Please select both Subject and Faculty before proceeding.');
-                } else {
-                form.submit();
-                }
-            });
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    updateFormFields(); // Sync values to hidden fields
+                    
+                    const subjectId = subjectSelect.value;
+                    const facultyId = facultySelect.value;
+        
+                    console.log("Submitting form:", formId);
+                    console.log("Subject ID:", subjectId);
+                    console.log("Faculty ID:", facultyId);
+        
+                    if (!subjectId || !facultyId) {
+                        alert('Please select both Subject and Faculty before proceeding.');
+                    } else {
+                        console.log("Form is valid, submitting...");
+                        form.submit();
+                    }
+                });
             }
         });
+        
         
         // Capture button functionality
         const captureBtn = document.getElementById('capture-btn');
