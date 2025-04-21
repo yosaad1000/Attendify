@@ -14,25 +14,19 @@
         <div class="card-body">
             <form method="POST" action="{{ url_for('admin_subjects') }}">
                 <div class="row">
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <div class="form-group">
                             <label for="subject_id">Subject ID</label>
                             <input type="text" class="form-control" id="subject_id" name="subject_id" required>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <div class="form-group">
                             <label for="name">Subject Name</label>
                             <input type="text" class="form-control" id="name" name="name" required>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label for="code">Subject Code</label>
-                            <input type="text" class="form-control" id="code" name="code" required>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <div class="form-group">
                             <label for="department_id">Department</label>
                             <select class="form-control" id="department_id" name="department_id" required>
@@ -48,12 +42,6 @@
                 <div class="row mt-3">
                     <div class="col-md-3">
                         <div class="form-group">
-                            <label for="semester">Semester</label>
-                            <input type="number" class="form-control" id="semester" name="semester" min="1" max="8">
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-group">
                             <label for="credits">Credits</label>
                             <input type="number" class="form-control" id="credits" name="credits" min="1" max="6">
                         </div>
@@ -64,17 +52,6 @@
                                 <input type="checkbox" class="form-check-input" id="is_elective" name="is_elective">
                                 <label class="form-check-label" for="is_elective">Is Elective</label>
                             </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label>Faculty</label>
-                            <select multiple class="form-control" name="faculty_ids">
-                                {% for f in faculty %}
-                                <option value="{{ f.faculty_id }}">{{ f.name }}</option>
-                                {% endfor %}
-                            </select>
-                            <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple</small>
                         </div>
                     </div>
                 </div>
@@ -93,19 +70,17 @@
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th>Code</th>
+                        <th>ID</th>
                         <th>Name</th>
                         <th>Department</th>
-                        <th>Semester</th>
                         <th>Credits</th>
                         <th>Elective</th>
-                        <th>Faculty</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for subject in subjects %}
                     <tr>
-                        <td>{{ subject.code }}</td>
+                        <td>{{ subject.subject_id }}</td>
                         <td>{{ subject.name }}</td>
                         <td>
                             {% for dept in departments %}
@@ -114,18 +89,8 @@
                                 {% endif %}
                             {% endfor %}
                         </td>
-                        <td>{{ subject.semester }}</td>
                         <td>{{ subject.credits }}</td>
                         <td>{{ "Yes" if subject.is_elective else "No" }}</td>
-                        <td>
-                            {% for faculty_id in subject.faculty_ids %}
-                                {% for f in faculty %}
-                                    {% if f.faculty_id == faculty_id %}
-                                        <span class="badge bg-primary">{{ f.name }}</span>
-                                    {% endif %}
-                                {% endfor %}
-                            {% endfor %}
-                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>

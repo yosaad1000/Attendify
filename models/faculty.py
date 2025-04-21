@@ -2,11 +2,11 @@ class Faculty:
     """
     Represents a faculty member/teacher
     """
-    def __init__(self, faculty_id, name, email, departments=None, subjects=None):
+    def __init__(self, faculty_id, name, email, departments, subjects=None):
         self.faculty_id = faculty_id  # Faculty ID (used as document ID)
         self.name = name              # Faculty name
         self.email = email            # Faculty email
-        self.departments = departments or []  # List of department IDs the faculty belongs to
+        self.departments = departments  # List of department IDs the faculty belongs to
         self.subjects = subjects or [] # List of subject IDs the faculty teaches
     
     @staticmethod
@@ -16,7 +16,7 @@ class Faculty:
             faculty_id=source.get('faculty_id'),
             name=source.get('name'),
             email=source.get('email'),
-            departments=source.get('departments', []),
+            departments=source.get('departments'),
             subjects=source.get('subjects', [])
         )
         return faculty

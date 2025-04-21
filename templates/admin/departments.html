@@ -69,9 +69,11 @@
                                 <select class="form-control form-control-sm mr-2" name="hod_id">
                                     <option value="">Select HOD</option>
                                     {% for f in faculty %}
-                                    <option value="{{ f.faculty_id }}" {% if dept.hod == f.faculty_id %}selected{% endif %}>
-                                        {{ f.name }}
-                                    </option>
+                                        {% if f.departments == dept.dept_id %}
+                                        <option value="{{ f.faculty_id }}" {% if dept.hod == f.faculty_id %}selected{% endif %}>
+                                            {{ f.name }}
+                                        </option>
+                                        {% endif %}
                                     {% endfor %}
                                 </select>
                                 <button type="submit" class="btn btn-sm btn-primary">Set HOD</button>

@@ -547,7 +547,7 @@ def admin_faculty():
                 faculty_id=faculty_id,
                 name=name, 
                 email=email,
-                departments=[department],
+                departments=department,
                 subjects=default_subjects
             )
             storage_service.add_faculty(faculty)
@@ -569,20 +569,14 @@ def admin_subjects():
     if request.method == 'POST':
         subject_id = request.form['subject_id']
         name = request.form['name']
-        code = request.form['code']
         department_id = request.form['department_id']
-        faculty_ids = request.form.getlist('faculty_ids')
-        semester = request.form.get('semester')
         credits = request.form.get('credits')
         is_elective = 'is_elective' in request.form
         
         subject = Subject(
             subject_id=subject_id,
             name=name,
-            code=code,
             department_id=department_id,
-            faculty_ids=faculty_ids,
-            semester=semester,
             credits=credits,
             is_elective=is_elective
         )
@@ -592,12 +586,10 @@ def admin_subjects():
     
     subjects = storage_service.get_all_subjects()
     departments = storage_service.get_all_departments()
-    faculty = [Faculty.from_dict(doc.to_dict()) for doc in storage_service.db.collection('faculty').stream()]
     
     return render_template('admin/subjects.html', 
                          subjects=subjects,
-                         departments=departments,
-                         faculty=faculty)
+                         departments=departments)
 
 @app.route('/admin/enroll_student', methods=['GET', 'POST'])
 def admin_enroll_student():
