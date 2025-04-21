@@ -14,27 +14,16 @@
         <div class="card-body">
             <form method="POST" action="{{ url_for('admin_departments') }}">
                 <div class="row">
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <div class="form-group">
                             <label for="dept_id">Department ID</label>
                             <input type="text" class="form-control" id="dept_id" name="dept_id" required>
                         </div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <div class="form-group">
                             <label for="name">Department Name</label>
                             <input type="text" class="form-control" id="name" name="name" required>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label for="hod">Head of Department</label>
-                            <select class="form-control" id="hod" name="hod">
-                                <option value="">-- Select HOD --</option>
-                                {% for f in faculty %}
-                                <option value="{{ f.faculty_id }}">{{ f.name }}</option>
-                                {% endfor %}
-                            </select>
                         </div>
                     </div>
                 </div>
@@ -55,6 +44,7 @@
                         <th>Department ID</th>
                         <th>Name</th>
                         <th>Head of Department</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -63,11 +53,29 @@
                         <td>{{ dept.dept_id }}</td>
                         <td>{{ dept.name }}</td>
                         <td>
-                            {% for f in faculty %}
-                                {% if f.faculty_id == dept.hod %}
-                                    {{ f.name }}
-                                {% endif %}
-                            {% endfor %}
+                            {% if dept.hod %}
+                                {% for f in faculty %}
+                                    {% if f.faculty_id == dept.hod %}
+                                        {{ f.name }}
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-muted">Not assigned</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form method="POST" action="{{ url_for('set_hod') }}" class="form-inline">
+                                <input type="hidden" name="dept_id" value="{{ dept.dept_id }}">
+                                <select class="form-control form-control-sm mr-2" name="hod_id">
+                                    <option value="">Select HOD</option>
+                                    {% for f in faculty %}
+                                    <option value="{{ f.faculty_id }}" {% if dept.hod == f.faculty_id %}selected{% endif %}>
+                                        {{ f.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="btn btn-sm btn-primary">Set HOD</button>
+                            </form>
                         </td>
                     </tr>
                     {% endfor %}

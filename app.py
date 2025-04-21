@@ -477,7 +477,9 @@ def admin_departments():
     if request.method == 'POST':
         dept_id = request.form['dept_id']
         name = request.form['name']
-        hod = request.form.get('hod')
+        
+        # HOD is optional during creation
+        hod = request.form.get('hod', None)
         
         department = Department(dept_id=dept_id, name=name, hod=hod)
         storage_service.add_department(department)
@@ -489,6 +491,16 @@ def admin_departments():
     faculty_list = [Faculty.from_dict(doc.to_dict()) for doc in faculty]
     
     return render_template('admin/departments.html', departments=departments, faculty=faculty_list)
+
+@app.route('/admin/departments/set_hod', methods=['POST'])
+def set_hod():
+    dept_id = request.form['dept_id']
+    hod_id = request.form['hod_id']
+    
+    # Update the department with the new HOD
+    storage_service.db.collection('departments').document(dept_id).update({'hod': hod_id})
+    
+    return redirect(url_for('admin_departments'))
 
 @app.route('/admin/faculty', methods=['GET', 'POST'])
 def admin_faculty():
