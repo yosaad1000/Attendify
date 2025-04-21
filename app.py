@@ -4,7 +4,7 @@ import uuid
 import threading
 from datetime import datetime, date
 from io import BytesIO
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory, jsonify
+from flask import Flask, render_template, request, redirect, url_for, send_from_directory, jsonify,flash
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageDraw
 from config import config
@@ -562,6 +562,23 @@ def admin_faculty():
                          faculty=faculty_list, 
                          departments=departments,
                          subjects=subjects)
+
+@app.route('/admin/faculty/remove/<faculty_id>', methods=['POST'])
+def remove_faculty(faculty_id):
+    try:
+        # Delete faculty document from Firestore
+        faculty_ref = storage_service.db.collection('faculty').where('faculty_id', '==', faculty_id).get()
+        if faculty_ref:
+            for doc in faculty_ref:  # Need to loop through all matching documents
+                doc.reference.delete()
+            flash('Faculty removed successfully', 'success')
+        else:
+            flash('Faculty not found', 'error')
+        return redirect(url_for('admin_faculty'))
+    except Exception as e:
+        logger.error(f"Error removing faculty: {str(e)}")
+        flash('Error removing faculty', 'error')
+        return redirect(url_for('admin_faculty'))
 
 
 @app.route('/admin/subjects', methods=['GET', 'POST'])

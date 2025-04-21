@@ -4,6 +4,18 @@
 
 {% block content %}
 <div class="container mt-4">
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
     <h2>Manage Faculty</h2>
     
     <!-- Faculty Form -->
@@ -58,55 +70,76 @@
             <h5>Existing Faculty</h5>
         </div>
         <div class="card-body">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Faculty ID</th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Department</th>
-                        <th>Subjects</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for f in faculty %}
-                    <tr>
-                        <td>{{ f.faculty_id }}</td>
-                        <td>{{ f.name }}</td>
-                        <td>{{ f.email }}</td>
-                        <td>
-                            {% for dept_id in f.departments %}
-                                {% for dept in departments %}
-                                    {% if dept.dept_id == dept_id %}
-                                        <span class="badge bg-primary">{{ dept.name }}</span>
-                                    {% endif %}
-                                {% endfor %}
-                            {% endfor %}
-                        </td>
-                        <td>
-                            <form method="POST" action="{{ url_for('admin_faculty') }}" class="d-inline">
-                                <input type="hidden" name="faculty_id" value="{{ f.faculty_id }}">
-                                <select multiple class="form-control" name="subjects" style="min-width: 200px;">
-                                    {% for subject in subjects %}
-                                    <option value="{{ subject.subject_id }}" 
-                                        {% if subject.subject_id in f.subjects %}selected{% endif %}>
-                                        {{ subject.name }} ({{ subject.code }})
-                                    </option>
+            {% if faculty %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Faculty ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Department</th>
+                            <th>Subjects</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for f in faculty %}
+                        <tr>
+                            <td>{{ f.faculty_id }}</td>
+                            <td>{{ f.name }}</td>
+                            <td>{{ f.email }}</td>
+                            <td>
+                                {% if f.departments is string %}
+                                    {# Handle case where departments is stored as a string #}
+                                    {% for dept in departments %}
+                                        {% if dept.dept_id == f.departments %}
+                                            <span class="badge bg-primary">{{ dept.name }}</span>
+                                        {% endif %}
                                     {% endfor %}
-                                </select>
-                                <button type="submit" name="edit_subjects" class="btn btn-sm btn-success mt-1">
-                                    Update Subjects
-                                </button>
-                            </form>
-                        </td>
-                        <td>
-                            <a href="#" class="btn btn-sm btn-danger">Remove</a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                                {% else %}
+                                    {# Handle case where departments is stored as a list #}
+                                    {% for dept_id in f.departments %}
+                                        {% for dept in departments %}
+                                            {% if dept.dept_id == dept_id %}
+                                                <span class="badge bg-primary">{{ dept.name }}</span>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endfor %}
+                                {% endif %}
+                            </td>
+                            <td>
+                                <form method="POST" action="{{ url_for('admin_faculty') }}" class="d-inline">
+                                    <input type="hidden" name="faculty_id" value="{{ f.faculty_id }}">
+                                    <select multiple class="form-control" name="subjects" style="min-width: 200px;">
+                                        {% for subject in subjects %}
+                                        <option value="{{ subject.subject_id }}" 
+                                            {% if subject.subject_id in f.subjects %}selected{% endif %}>
+                                            {{ subject.name }} ({{ subject.code }})
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="submit" name="edit_subjects" class="btn btn-sm btn-success mt-1">
+                                        Update Subjects
+                                    </button>
+                                </form>
+                            </td>
+                            <td>
+                                <form method="POST" action="{{ url_for('remove_faculty', faculty_id=f.faculty_id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-danger" 
+                                        onclick="return confirm('Are you sure you want to remove this faculty?')">
+                                        Remove
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+                <div class="alert alert-info">No faculty members found.</div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -140,8 +173,10 @@ document.addEventListener('DOMContentLoaded', function() {
     facultyIdInput.addEventListener('input', function() {
         if (this.value) {
             this.placeholder = "";
-        } else {
+        } else if (departmentSelect.value) {
             this.placeholder = `TE00${departmentSelect.value}X`;
+        } else {
+            this.placeholder = "Leave blank for auto-generation";
         }
     });
 });
