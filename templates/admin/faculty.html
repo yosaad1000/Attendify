@@ -14,47 +14,35 @@
         <div class="card-body">
             <form method="POST" action="{{ url_for('admin_faculty') }}">
                 <div class="row">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <div class="form-group">
-                            <label for="faculty_id">Faculty ID</label>
-                            <input type="text" class="form-control" id="faculty_id" name="faculty_id" required>
+                            <label for="faculty_id">Faculty ID (optional)</label>
+                            <input type="text" class="form-control" id="faculty_id" name="faculty_id"
+                                   placeholder="Leave blank for auto-generation">
+                            <small class="form-text text-muted">Auto-format: TE00{DeptID}{Number}</small>
                         </div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="department">Department</label>
+                            <select class="form-control" id="department" name="department" required>
+                                <option value="">Select Department</option>
+                                {% for dept in departments %}
+                                <option value="{{ dept.dept_id }}">{{ dept.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
                         <div class="form-group">
                             <label for="name">Name</label>
                             <input type="text" class="form-control" id="name" name="name" required>
                         </div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <div class="form-group">
                             <label for="email">Email</label>
                             <input type="email" class="form-control" id="email" name="email" required>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="row mt-3">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label>Departments</label>
-                            <select multiple class="form-control" name="departments">
-                                {% for dept in departments %}
-                                <option value="{{ dept.dept_id }}">{{ dept.name }}</option>
-                                {% endfor %}
-                            </select>
-                            <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple departments</small>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label>Subjects</label>
-                            <select multiple class="form-control" name="subjects">
-                                {% for subject in subjects %}
-                                <option value="{{ subject.subject_id }}">{{ subject.name }} ({{ subject.code }})</option>
-                                {% endfor %}
-                            </select>
-                            <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple subjects</small>
                         </div>
                     </div>
                 </div>
@@ -76,8 +64,9 @@
                         <th>Faculty ID</th>
                         <th>Name</th>
                         <th>Email</th>
-                        <th>Departments</th>
+                        <th>Department</th>
                         <th>Subjects</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -96,13 +85,23 @@
                             {% endfor %}
                         </td>
                         <td>
-                            {% for subject_id in f.subjects %}
-                                {% for subject in subjects %}
-                                    {% if subject.subject_id == subject_id %}
-                                        <span class="badge bg-info">{{ subject.name }}</span>
-                                    {% endif %}
-                                {% endfor %}
-                            {% endfor %}
+                            <form method="POST" action="{{ url_for('admin_faculty') }}" class="d-inline">
+                                <input type="hidden" name="faculty_id" value="{{ f.faculty_id }}">
+                                <select multiple class="form-control" name="subjects" style="min-width: 200px;">
+                                    {% for subject in subjects %}
+                                    <option value="{{ subject.subject_id }}" 
+                                        {% if subject.subject_id in f.subjects %}selected{% endif %}>
+                                        {{ subject.name }} ({{ subject.code }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" name="edit_subjects" class="btn btn-sm btn-success mt-1">
+                                    Update Subjects
+                                </button>
+                            </form>
+                        </td>
+                        <td>
+                            <a href="#" class="btn btn-sm btn-danger">Remove</a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -111,4 +110,40 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const departmentSelect = document.getElementById('department');
+    const facultyIdInput = document.getElementById('faculty_id');
+    
+    departmentSelect.addEventListener('change', function() {
+        if (!facultyIdInput.value) {  // Only suggest if ID field is empty
+            const deptId = this.value;
+            if (deptId) {
+                // This is just a suggestion, actual generation happens server-side
+                fetch(`/api/faculty/count?department=${deptId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const nextNumber = data.count + 1;
+                        facultyIdInput.placeholder = `TE00${deptId}${nextNumber}`;
+                    })
+                    .catch(error => {
+                        facultyIdInput.placeholder = `TE00${deptId}X`;
+                    });
+            } else {
+                facultyIdInput.placeholder = "Leave blank for auto-generation";
+            }
+        }
+    });
+    
+    // Clear placeholder when user starts typing
+    facultyIdInput.addEventListener('input', function() {
+        if (this.value) {
+            this.placeholder = "";
+        } else {
+            this.placeholder = `TE00${departmentSelect.value}X`;
+        }
+    });
+});
+</script>
 {% endblock %}

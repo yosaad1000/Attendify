@@ -505,22 +505,54 @@ def set_hod():
 @app.route('/admin/faculty', methods=['GET', 'POST'])
 def admin_faculty():
     if request.method == 'POST':
-        faculty_id = request.form['faculty_id']
-        name = request.form['name']
-        email = request.form['email']
-        departments = request.form.getlist('departments')
-        subjects = request.form.getlist('subjects')
-        
-        faculty = Faculty(
-            faculty_id=faculty_id,
-            name=name, 
-            email=email,
-            departments=departments,
-            subjects=subjects
-        )
-        storage_service.add_faculty(faculty)
-        
-        return redirect(url_for('admin_faculty'))
+        if 'edit_subjects' in request.form:
+            # Handle subject editing
+            faculty_id = request.form['faculty_id']
+            subjects = request.form.getlist('subjects')
+            
+            # Update faculty subjects in database
+            faculty_ref = storage_service.db.collection('faculty').where('faculty_id', '==', faculty_id).get()
+            if faculty_ref:
+                doc = faculty_ref[0]
+                doc.reference.update({'subjects': subjects})
+            
+            return redirect(url_for('admin_faculty'))
+        else:
+            # Handle new faculty creation
+            department = request.form['department']
+            name = request.form['name']
+            email = request.form['email']
+            manual_id = request.form.get('faculty_id', '').strip()
+            
+            # Generate faculty ID if not manually provided
+            if manual_id:
+                faculty_id = manual_id
+            else:
+                faculty_count = len([doc for doc in storage_service.db.collection('faculty')
+                                   .where('departments', 'array_contains', department).stream()])
+                faculty_id = f"TE00{department}{faculty_count + 1}"
+            
+            # Check if ID already exists
+            existing_faculty = storage_service.db.collection('faculty') \
+                .where('faculty_id', '==', faculty_id).get()
+            if existing_faculty:
+                flash('Faculty ID already exists!', 'error')
+                return redirect(url_for('admin_faculty'))
+            
+            # Get default subjects for the department - USING department_id NOW
+            default_subjects = [subj.subject_id for subj in storage_service.get_all_subjects() 
+                               if subj.department_id == department]
+            
+            faculty = Faculty(
+                faculty_id=faculty_id,
+                name=name, 
+                email=email,
+                departments=[department],
+                subjects=default_subjects
+            )
+            storage_service.add_faculty(faculty)
+            
+            return redirect(url_for('admin_faculty'))
     
     faculty_list = [Faculty.from_dict(doc.to_dict()) for doc in storage_service.db.collection('faculty').stream()]
     departments = storage_service.get_all_departments()
@@ -530,6 +562,7 @@ def admin_faculty():
                          faculty=faculty_list, 
                          departments=departments,
                          subjects=subjects)
+
 
 @app.route('/admin/subjects', methods=['GET', 'POST'])
 def admin_subjects():
