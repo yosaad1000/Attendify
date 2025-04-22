@@ -579,7 +579,83 @@ def remove_faculty(faculty_id):
         logger.error(f"Error removing faculty: {str(e)}")
         flash('Error removing faculty', 'error')
         return redirect(url_for('admin_faculty'))
+    
 
+@app.route('/admin/faculty/assign_subjects/<faculty_id>', methods=['GET', 'POST'])
+def assign_subjects(faculty_id):
+    try:
+        # Get faculty data
+        faculty_ref = storage_service.db.collection('faculty').where('faculty_id', '==', faculty_id).get()
+        if not faculty_ref:
+            flash('Faculty not found', 'error')
+            return redirect(url_for('admin_faculty'))
+            
+        faculty_doc = faculty_ref[0]
+        faculty = Faculty.from_dict(faculty_doc.to_dict())
+        
+        if request.method == 'POST':
+            # Get selected subjects from form
+            selected_subjects = request.form.getlist('subjects')
+            
+            # Get previously assigned subjects
+            previous_subjects = faculty.subjects if hasattr(faculty, 'subjects') else []
+            
+            # Update faculty's subjects in database
+            faculty_doc.reference.update({'subjects': selected_subjects})
+            
+            # Update subject documents to add/remove this faculty_id
+            for subject_id in previous_subjects:
+                if subject_id not in selected_subjects:
+                    # Remove faculty from this subject
+                    subject_ref = storage_service.db.collection('subjects').where('subject_id', '==', subject_id).get()
+                    if subject_ref:
+                        subject_doc = subject_ref[0]
+                        subject_data = subject_doc.to_dict()
+                        if 'faculty_ids' in subject_data and faculty_id in subject_data['faculty_ids']:
+                            subject_data['faculty_ids'].remove(faculty_id)
+                            subject_doc.reference.update({'faculty_ids': subject_data['faculty_ids']})
+            
+            for subject_id in selected_subjects:
+                if subject_id not in previous_subjects:
+                    # Add faculty to this subject
+                    subject_ref = storage_service.db.collection('subjects').where('subject_id', '==', subject_id).get()
+                    if subject_ref:
+                        subject_doc = subject_ref[0]
+                        subject_data = subject_doc.to_dict()
+                        if 'faculty_ids' not in subject_data:
+                            subject_data['faculty_ids'] = []
+                        if faculty_id not in subject_data['faculty_ids']:
+                            subject_data['faculty_ids'].append(faculty_id)
+                            subject_doc.reference.update({'faculty_ids': subject_data['faculty_ids']})
+            
+            flash('Subjects assigned successfully', 'success')
+            return redirect(url_for('admin_faculty'))
+            
+        # For GET requests
+        # Get all subjects
+        subjects = storage_service.get_all_subjects()
+        
+        # Get currently assigned subjects
+        assigned_subjects = faculty.subjects if hasattr(faculty, 'subjects') else []
+        
+        # Get department name for display
+        department_name = "Unknown"
+        if isinstance(faculty.departments, str):
+            dept_id = faculty.departments
+            dept_ref = storage_service.db.collection('departments').where('dept_id', '==', dept_id).get()
+            if dept_ref:
+                department_name = dept_ref[0].to_dict().get('name', "Unknown")
+        
+        return render_template('admin/assign_subjects.html',
+                            faculty=faculty,
+                            subjects=subjects,
+                            department_name=department_name,
+                            assigned_subjects=assigned_subjects)
+                            
+    except Exception as e:
+        logger.error(f"Error assigning subjects: {str(e)}")
+        flash('Error assigning subjects', 'error')
+        return redirect(url_for('admin_faculty'))
 
 @app.route('/admin/subjects', methods=['GET', 'POST'])
 def admin_subjects():
@@ -609,6 +685,7 @@ def admin_subjects():
                          departments=departments)
 
 
+
 @app.route('/admin/subjects/remove/<subject_id>', methods=['POST'])
 def remove_subject(subject_id):
     try:
@@ -636,7 +713,7 @@ def remove_subject(subject_id):
         flash('Error removing subject', 'error')
         return redirect(url_for('admin_subjects'))
     
-    
+
 
 @app.route('/admin/enroll_student', methods=['GET', 'POST'])
 def admin_enroll_student():

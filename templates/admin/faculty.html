@@ -82,8 +82,8 @@
                             <th>Faculty ID</th>
                             <th>Name</th>
                             <th>Email</th>
-                            <th>Subjects</th>
-                            <th>Actions</th>
+                            <th>Assign Subjects</th>
+                            <th>Remove</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -95,22 +95,7 @@
                                     <td>{{ f.name }}</td>
                                     <td>{{ f.email }}</td>
                                     <td>
-                                        <form method="POST" action="{{ url_for('admin_faculty') }}" class="d-inline">
-                                            <input type="hidden" name="faculty_id" value="{{ f.faculty_id }}">
-                                            <select multiple class="form-control" name="subjects" style="min-width: 200px;">
-                                                {% for subject in subjects %}
-                                                    {% if subject.department_id == dept.dept_id %}
-                                                        <option value="{{ subject.subject_id }}" 
-                                                            {% if subject.subject_id in f.subjects %}selected{% endif %}>
-                                                            {{ subject.name }}
-                                                        </option>
-                                                    {% endif %}
-                                                {% endfor %}
-                                            </select>
-                                            <button type="submit" name="edit_subjects" class="btn btn-sm btn-success mt-1">
-                                                Update Subjects
-                                            </button>
-                                        </form>
+                                        <a href="{{ url_for('assign_subjects', faculty_id=f.faculty_id) }}" class="btn btn-sm btn-secondary">Assign</a>
                                     </td>
                                     <td>
                                         <form method="POST" action="{{ url_for('remove_faculty', faculty_id=f.faculty_id) }}" class="d-inline">
@@ -124,11 +109,6 @@
                             {% endif %}
                         {% endfor %}
                         
-                        {% if not found %}
-                            <tr>
-                                <td colspan="5" class="text-center">No faculty members found for this department</td>
-                            </tr>
-                        {% endif %}
                     </tbody>
                 </table>
             </div>
@@ -175,4 +155,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
-```

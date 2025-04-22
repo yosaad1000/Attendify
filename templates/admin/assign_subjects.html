@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Assign Subjects to Faculty{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <h2>Assign Subjects to Faculty</h2>
+    
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Faculty Details</h5>
+            <p class="card-text">
+                <strong>Name:</strong> {{ faculty.name }}<br>
+                <strong>Faculty ID:</strong> {{ faculty.faculty_id }}<br>
+                <strong>Department:</strong> {{ department_name }}
+            </p>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('assign_subjects', faculty_id=faculty.faculty_id) }}">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5>Available Subjects</h5>
+            </div>
+            <div class="card-body">                
+                <div class="row">
+                    {% if subjects %}
+                        {% for subject in subjects %}
+                        <div class="col-md-4 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" 
+                                       name="subjects" value="{{ subject.subject_id }}"
+                                       id="subject{{ subject.subject_id }}"
+                                       {% if subject.subject_id in assigned_subjects %}checked{% endif %}>
+                                <label class="form-check-label" for="subject{{ subject.subject_id }}">
+                                    {{ subject.name }}
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="col-12">
+                            <p class="text-muted">No subjects available</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-3">
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <a href="{{ url_for('admin_faculty') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
