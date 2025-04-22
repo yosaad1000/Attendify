@@ -4,6 +4,18 @@
 
 {% block content %}
 <div class="container mt-4">
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
     <h2>Manage Subjects</h2>
     
     <!-- Subject Form -->
@@ -61,41 +73,59 @@
         </div>
     </div>
     
-    <!-- Subjects List -->
-    <div class="card">
-        <div class="card-header">
-            <h5>Existing Subjects</h5>
+    <!-- Subjects List Grouped by Department -->
+    <h4 class="mb-3">Subjects by Department</h4>
+    
+    {% for dept in departments %}
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5>{{ dept.name }}</h5>
         </div>
         <div class="card-body">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Department</th>
-                        <th>Credits</th>
-                        <th>Elective</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for subject in subjects %}
-                    <tr>
-                        <td>{{ subject.subject_id }}</td>
-                        <td>{{ subject.name }}</td>
-                        <td>
-                            {% for dept in departments %}
-                                {% if dept.dept_id == subject.department_id %}
-                                    {{ dept.name }}
-                                {% endif %}
-                            {% endfor %}
-                        </td>
-                        <td>{{ subject.credits }}</td>
-                        <td>{{ "Yes" if subject.is_elective else "No" }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            {% set found = false %}
+            
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Credits</th>
+                            <th>Elective</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for subject in subjects %}
+                            {% if subject.department_id == dept.dept_id %}
+                                {% set found = true %}
+                                <tr>
+                                    <td>{{ subject.subject_id }}</td>
+                                    <td>{{ subject.name }}</td>
+                                    <td>{{ subject.credits }}</td>
+                                    <td>{{ "Yes" if subject.is_elective else "No" }}</td>
+                                    <td>
+                                        <form method="POST" action="{{ url_for('remove_subject', subject_id=subject.subject_id) }}" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-danger" 
+                                                onclick="return confirm('Are you sure you want to remove this subject?')">
+                                                Remove
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if not found %}
+                            <tr>
+                                <td colspan="5" class="text-center">No subjects found for this department</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
+    {% endfor %}
 </div>
 {% endblock %}

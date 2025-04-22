@@ -64,13 +64,17 @@
         </div>
     </div>
     
-    <!-- Faculty List -->
-    <div class="card">
-        <div class="card-header">
-            <h5>Existing Faculty</h5>
+    <!-- Faculty List Grouped by Department -->
+    <h4 class="mb-3">Faculty by Department</h4>
+    
+    {% for dept in departments %}
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5>{{ dept.name }}</h5>
         </div>
         <div class="card-body">
-            {% if faculty %}
+            {% set found = false %}
+            
             <div class="table-responsive">
                 <table class="table table-striped">
                     <thead>
@@ -78,70 +82,59 @@
                             <th>Faculty ID</th>
                             <th>Name</th>
                             <th>Email</th>
-                            <th>Department</th>
                             <th>Subjects</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for f in faculty %}
-                        <tr>
-                            <td>{{ f.faculty_id }}</td>
-                            <td>{{ f.name }}</td>
-                            <td>{{ f.email }}</td>
-                            <td>
-                                {% if f.departments is string %}
-                                    {# Handle case where departments is stored as a string #}
-                                    {% for dept in departments %}
-                                        {% if dept.dept_id == f.departments %}
-                                            <span class="badge bg-primary">{{ dept.name }}</span>
-                                        {% endif %}
-                                    {% endfor %}
-                                {% else %}
-                                    {# Handle case where departments is stored as a list #}
-                                    {% for dept_id in f.departments %}
-                                        {% for dept in departments %}
-                                            {% if dept.dept_id == dept_id %}
-                                                <span class="badge bg-primary">{{ dept.name }}</span>
-                                            {% endif %}
-                                        {% endfor %}
-                                    {% endfor %}
-                                {% endif %}
-                            </td>
-                            <td>
-                                <form method="POST" action="{{ url_for('admin_faculty') }}" class="d-inline">
-                                    <input type="hidden" name="faculty_id" value="{{ f.faculty_id }}">
-                                    <select multiple class="form-control" name="subjects" style="min-width: 200px;">
-                                        {% for subject in subjects %}
-                                        <option value="{{ subject.subject_id }}" 
-                                            {% if subject.subject_id in f.subjects %}selected{% endif %}>
-                                            {{ subject.name }} ({{ subject.code }})
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                    <button type="submit" name="edit_subjects" class="btn btn-sm btn-success mt-1">
-                                        Update Subjects
-                                    </button>
-                                </form>
-                            </td>
-                            <td>
-                                <form method="POST" action="{{ url_for('remove_faculty', faculty_id=f.faculty_id) }}" class="d-inline">
-                                    <button type="submit" class="btn btn-sm btn-danger" 
-                                        onclick="return confirm('Are you sure you want to remove this faculty?')">
-                                        Remove
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
+                            {% if (f.departments is string and f.departments == dept.dept_id) or (f.departments is not string and dept.dept_id in f.departments) %}
+                                {% set found = true %}
+                                <tr>
+                                    <td>{{ f.faculty_id }}</td>
+                                    <td>{{ f.name }}</td>
+                                    <td>{{ f.email }}</td>
+                                    <td>
+                                        <form method="POST" action="{{ url_for('admin_faculty') }}" class="d-inline">
+                                            <input type="hidden" name="faculty_id" value="{{ f.faculty_id }}">
+                                            <select multiple class="form-control" name="subjects" style="min-width: 200px;">
+                                                {% for subject in subjects %}
+                                                    {% if subject.department_id == dept.dept_id %}
+                                                        <option value="{{ subject.subject_id }}" 
+                                                            {% if subject.subject_id in f.subjects %}selected{% endif %}>
+                                                            {{ subject.name }}
+                                                        </option>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </select>
+                                            <button type="submit" name="edit_subjects" class="btn btn-sm btn-success mt-1">
+                                                Update Subjects
+                                            </button>
+                                        </form>
+                                    </td>
+                                    <td>
+                                        <form method="POST" action="{{ url_for('remove_faculty', faculty_id=f.faculty_id) }}" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-danger" 
+                                                onclick="return confirm('Are you sure you want to remove this faculty?')">
+                                                Remove
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endif %}
                         {% endfor %}
+                        
+                        {% if not found %}
+                            <tr>
+                                <td colspan="5" class="text-center">No faculty members found for this department</td>
+                            </tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
-            {% else %}
-                <div class="alert alert-info">No faculty members found.</div>
-            {% endif %}
         </div>
     </div>
+    {% endfor %}
 </div>
 
 <script>
@@ -182,3 +175,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+```

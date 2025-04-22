@@ -2,8 +2,8 @@ class Subject:
     """
     Represents an academic subject/course
     """
-    def __init__(self, subject_id, name, code, department_id, faculty_ids=None, 
-                 semester=None, credits=None, is_elective=False):
+    def __init__(self, subject_id, name, department_id, faculty_ids=None, 
+                 credits=None, is_elective=False):
         self.subject_id = subject_id      # Subject ID (used as document ID)
         self.name = name                  # Subject name
         self.department_id = department_id # Department the subject belongs to

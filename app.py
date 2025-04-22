@@ -608,6 +608,36 @@ def admin_subjects():
                          subjects=subjects,
                          departments=departments)
 
+
+@app.route('/admin/subjects/remove/<subject_id>', methods=['POST'])
+def remove_subject(subject_id):
+    try:
+        # Delete subject document from Firestore
+        subject_ref = storage_service.db.collection('subjects').where('subject_id', '==', subject_id).get()
+        if subject_ref:
+            for doc in subject_ref:  # Need to loop through all matching documents
+                doc.reference.delete()
+            
+            # Also remove this subject from any faculty members who teach it
+            faculty_refs = storage_service.db.collection('faculty').where('subjects', 'array_contains', subject_id).get()
+            for faculty_doc in faculty_refs:
+                subjects_list = faculty_doc.to_dict().get('subjects', [])
+                if subject_id in subjects_list:
+                    subjects_list.remove(subject_id)
+                    faculty_doc.reference.update({'subjects': subjects_list})
+            
+            flash('Subject removed successfully', 'success')
+        else:
+            flash('Subject not found', 'error')
+        
+        return redirect(url_for('admin_subjects'))
+    except Exception as e:
+        logger.error(f"Error removing subject: {str(e)}")
+        flash('Error removing subject', 'error')
+        return redirect(url_for('admin_subjects'))
+    
+    
+
 @app.route('/admin/enroll_student', methods=['GET', 'POST'])
 def admin_enroll_student():
     if request.method == 'POST':
