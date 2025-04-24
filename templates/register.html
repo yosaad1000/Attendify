@@ -1,86 +1,48 @@
 {% extends "base.html" %}
 
-{% block title %}Register Student - Attendify{% endblock %}
+{% block title %}Student Registration - Attendify{% endblock %}
 
 {% block extra_styles %}
 <style>
-    /* Register-specific styles */
-    .content-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 40px 20px;
+    .option-card {
+        transition: all 0.3s ease;
+        cursor: pointer;
+        height: 100%;
     }
-
-    .illustration {
-        text-align: center;
-        margin-bottom: 30px;
+    
+    .option-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.15);
     }
-
-    .illustration img {
-        max-width: 100%;
-        height: auto;
-        max-height: 300px;
-        border-radius: 10px;
-        transition: 0.3s;
+    
+    .card-icon {
+        font-size: 3rem;
+        color: #3b3b98;
+        margin-bottom: 15px;
     }
-
+    
     .form-container {
-        width: 100%;
-        max-width: 500px;
+        display: none;
         background: #fff;
         padding: 30px;
         border-radius: 10px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        transition: 0.3s;
+        margin-top: 30px;
     }
-
-    .form-container h2 {
-        text-align: center;
-        color: #2d2d7a;
+    
+    .active-form {
+        display: block;
+    }
+    
+    .back-button {
         margin-bottom: 20px;
     }
-
+    
     .form-container form label {
         display: block;
         margin-bottom: 8px;
         font-weight: bold;
         color: #333;
-    }
-
-    .form-container form input {
-        width: 100%;
-        padding: 12px;
-        margin-bottom: 20px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        font-size: 1rem;
-        transition: 0.3s;
-    }
-
-    .form-container form select {
-        width: 100%;
-        padding: 12px;
-        margin-bottom: 20px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        font-size: 1rem;
-        transition: 0.3s;
-    }
-
-    .form-container form input[type="submit"] {
-        background-color: #3b3b98;
-        color: #fff;
-        font-size: 1.2rem;
-        font-weight: bold;
-        border: none;
-        cursor: pointer;
-        transition: 0.3s;
-    }
-
-    .form-container form input[type="submit"]:hover {
-        background-color: #2d2d7a;
     }
 
     .capture-button {
@@ -101,83 +63,222 @@
         background-color: #2d2d7a;
     }
 
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .form-container {
-            max-width: 90%;
-        }
-    }
-
-    @media (max-width: 480px) {
-        .form-container {
-            max-width: 350px;
-            padding: 20px;
-        }
-
-        .form-container form input,
-        .form-container form select {
-            font-size: 0.9rem;
-            padding: 10px;
-        }
-
-        .capture-button {
-            font-size: 0.9rem;
-            padding: 10px 15px;
-        }
-
-        .illustration img {
-            max-height: 250px;
-        }
+    .image-preview {
+        max-width: 200px;
+        margin: 10px 0;
+        display: none;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="content-container">
-    <div class="illustration">
-        <img src="{{ url_for('static', filename='images/4155936.png') }}" alt="Illustration">
+<div class="container mt-5">
+    <h1 class="text-center mb-5">Student Management System</h1>
+    
+    <!-- Option Selection Cards -->
+    <div id="option-cards" class="row mb-5">
+        <div class="col-md-6 mb-4">
+            <div class="card option-card text-center p-4" onclick="showForm('register-new')">
+                <div class="card-body">
+                    <div class="card-icon">
+                        <i class="bi bi-person-plus-fill"></i>📝
+                    </div>
+                    <h3 class="card-title">Register New Student</h3>
+                    <p class="card-text">Add a new student to the system with their details and photograph</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="card option-card text-center p-4" onclick="showForm('enroll-existing')">
+                <div class="card-body">
+                    <div class="card-icon">
+                        <i class="bi bi-journal-check"></i>📚
+                    </div>
+                    <h3 class="card-title">Update & Enroll Students</h3>
+                    <p class="card-text">Manage existing students' semester details and subject enrollments</p>
+                </div>
+            </div>
+        </div>
     </div>
-
-    <div class="form-container">
-        <h2>Register New Student</h2>
-        <form action="{{ url_for('register_student') }}" method="POST" enctype="multipart/form-data">
-            <label for="name">Student Name:</label>
-            <input type="text" name="name" id="name" required>
-
-            <label for="student_id">Student ID:</label>
-            <input type="text" name="student_id" id="student_id" required>
+    
+    <!-- Register New Student Form -->
+    <div id="register-new-form" class="form-container">
+        <button class="btn btn-secondary back-button" onclick="showOptions()">
+            <i class="bi bi-arrow-left"></i> Back to Options
+        </button>
+        <h2 class="text-center mb-4">Register New Student</h2>
+        <form action="{{ url_for('register_new_student') }}" method="POST" enctype="multipart/form-data">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="department_id">Department:</label>
+                        <select name="department_id" id="department_id" class="form-select" required>
+                            <option value="">Select Department</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.dept_id }}">{{ dept.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="batch_year">Batch Year:</label>
+                        <input type="number" name="batch_year" id="batch_year" 
+                               class="form-control" value="{{ current_year }}" required>
+                    </div>
+                </div>
+            </div>
             
-            <label for="email">Email:</label>
-            <input type="email" name="email" id="email">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="name">Student Name:</label>
+                        <input type="text" name="name" id="name" class="form-control" required>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="email">Email:</label>
+                        <input type="email" name="email" id="email" class="form-control">
+                    </div>
+                </div>
+            </div>
             
-            <label for="department_id">Department:</label>
-            <select name="department_id" id="department_id">
-                <option value="">Select Department</option>
-                {% for department in departments %}
-                <option value="{{ department.id }}">{{ department.name }}</option>
-                {% endfor %}
-            </select>
+            <div class="mb-3">
+                <label for="student_id">Student ID:</label>
+                <input type="text" name="student_id" id="student_id" class="form-control" required>
+            </div>
             
-            <label for="batch_year">Batch Year:</label>
-            <input type="number" name="batch_year" id="batch_year" value="{{ current_year }}">
-
-            <label for="file">Upload Student Image:</label>
-            {% if captured_image %}
-                <img src="{{ url_for('uploads', filename=captured_image) }}" 
-                     alt="Captured Image" 
-                     style="width: 100%; margin-bottom: 20px;">
-                <input type="hidden" name="captured_image" value="{{ captured_image }}">
-            {% else %}
-                <input type="file" name="file" id="file" accept=".jpg, .jpeg, .png" required>
-                <p style="text-align: center; margin: 10px 0; color: #3b3b98; font-weight: bold;">OR</p>
-                <a href="{{ url_for('capture') }}" class="capture-button">Capture Image from Camera</a>
-            {% endif %}
-
-            <input type="submit" value="Register">
+            <div class="mb-3">
+                <label for="current_semester">Current Semester:</label>
+                <select name="current_semester" id="current_semester" class="form-select" required>
+                    <option value="">Select Semester</option>
+                    {% for n in range(1,9) %}
+                    <option value="{{ n }}">Semester {{ n }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="mb-3">
+                <label for="file">Upload Student Image:</label>
+                <input type="file" name="file" id="file" class="form-control" accept=".jpg, .jpeg, .png">
+            </div>
+            
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg mt-4">Register Student</button>
+            </div>
         </form>
+    </div>
+    
+    <!-- Enroll Existing Student Form -->
+    <div id="enroll-existing-form" class="form-container">
+        <button class="btn btn-secondary back-button" onclick="showOptions()">
+            <i class="bi bi-arrow-left"></i> Back to Options
+        </button>
+        <h2 class="text-center mb-4">Update & Enroll Students</h2>
+        
+        <!-- Step 1: Select Department and Batch -->
+        <div id="step1" class="mb-4">
+            <h4 class="mb-3">Step 1: Select Student Criteria</h4>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="filter_department_id">Department:</label>
+                        <select id="filter_department_id" class="form-select">
+                            <option value="">Select Department</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.id }}">{{ dept.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="filter_batch_year">Batch Year:</label>
+                        <select id="filter_batch_year" class="form-select">
+                            <option value="">Select Batch Year</option>
+                            {% for year in range(current_year, current_year - 5, -1) %}
+                            <option value="{{ year }}">{{ year }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="filter_semester">Current Semester:</label>
+                        <select id="filter_semester" class="form-select">
+                            <option value="">Select Semester</option>
+                            {% for n in range(1,9) %}
+                            <option value="{{ n }}">Semester {{ n }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2">
+                <button class="btn btn-primary" onclick="filterStudents()">Find Students</button>
+            </div>
+        </div>
+        
+        <!-- Step 2: Select Students -->
+        <div id="step2" style="display: none;" class="mb-4">
+            <h4 class="mb-3">Step 2: Select Students</h4>
+            <div class="mb-3">
+                <div class="d-flex justify-content-between mb-2">
+                    <label for="student_selector">Select Students:</label>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary me-2" onclick="selectAllStudents()">Select All</button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="deselectAllStudents()">Deselect All</button>
+                    </div>
+                </div>
+                <select id="student_selector" class="form-select" multiple size="8">
+                    <!-- Will be populated with filtered students -->
+                </select>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="new_semester">Update to Semester:</label>
+                        <select id="new_semester" class="form-select">
+                            <option value="">No Change</option>
+                            {% for n in range(1,9) %}
+                            <option value="{{ n }}">Semester {{ n }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2">
+                <button class="btn btn-primary" onclick="updateStudentSemester()">Update Semester</button>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
 
+{% block scripts %}
+<script>
+    // Form visibility management
+    function showForm(formId) {
+        document.getElementById('option-cards').style.display = 'none';
+        document.getElementById(formId + '-form').classList.add('active-form');
+    }
 
+    function showOptions() {
+        document.getElementById('option-cards').style.display = 'flex';
+        document.querySelectorAll('.form-container').forEach(form => form.classList.remove('active-form'));
+        document.getElementById('step1').style.display = 'block';
+        document.getElementById('step2').style.display = 'none';
+    }
 
+   
+</script>
+{% endblock %}

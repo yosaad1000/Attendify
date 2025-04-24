@@ -291,19 +291,30 @@ def dashboard():
     except Exception as e:
         logger.error(f"Dashboard error: {str(e)}")
         return f"An error occurred: {e}", 500
+    
 
-@app.route('/register_student', methods=['GET', 'POST'])
+@app.route('/register_student', methods=['GET'])
 def register_student():
-    if request.method == 'POST':
+    """Show registration options for new and existing students"""
+    departments = storage_service.get_all_departments()
+    return render_template('register.html', 
+                          departments=departments, 
+                          current_year=date.today().year)
+
+@app.route('/register_new_student', methods=['POST'])
+def register_new_student():
+    """Handle new student registration"""
+    try:
         name = request.form['name']
         student_id = request.form['student_id']
         email = request.form.get('email', '')
         department_id = request.form.get('department_id', '')
         batch_year = request.form.get('batch_year', datetime.now().year)
-        
+        current_semester = request.form.get('current_semester', '1')
+
         if storage_service.student_exists(student_id):
-            return "Student ID already registered", 400
-        
+            return jsonify({"success": False, "message": "Student ID already registered"}), 400
+
         # Get image from either file upload or camera capture
         image_data = None
         if 'file' in request.files:
@@ -311,39 +322,119 @@ def register_student():
             if file and allowed_file(file.filename):
                 image_data = file.read()
         elif 'captured_image' in request.form:
-            image_data = base64.b64decode(request.form['captured_image'].split(',')[1])
-        
+            captured_image = request.form['captured_image']
+            if captured_image:
+                if ',' in captured_image:
+                    image_data = base64.b64decode(captured_image.split(',')[1])
+                else:
+                    image_data = base64.b64decode(captured_image)
+
         if not image_data:
-            return "No image provided", 400
+            return jsonify({"success": False, "message": "No image provided"}), 400
+
+        # Process face for recognition
+        process_image_for_registration(image_data, student_id, name)
+
+        # Create and store student record
+        student = Student(
+            student_id=student_id,
+            name=name,
+            email=email,
+            department_id=department_id,
+            batch_year=batch_year,
+            current_semester=current_semester
+        )
+        storage_service.add_student(student)
+
+        # Return success response for AJAX request
+        flash(f'{student.student_id} was registered successfully', 'success')
+        return redirect(url_for('register_student'))
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+
+@app.route('/register_existing_student', methods=['POST'])
+def register_existing_student():
+    """Register an existing student for a new semester"""
+    try:
+        student_id = request.form['student_id']
+        new_semester = request.form['new_semester']
         
-        try:
-            # Process face for recognition
-            process_image_for_registration(image_data, student_id, name)
+        if not storage_service.student_exists(student_id):
+            return jsonify({"success": False, "message": "Student not found"}), 404
             
-            # Create and store student record
-            student = Student(
-                student_id=student_id,
-                name=name,
-                email=email,
-                department_id=department_id,
-                batch_year=batch_year
-            )
-            storage_service.add_student(student)
+        # Update the student's semester
+        if storage_service.update_student_semester(student_id, new_semester):
+            return jsonify({
+                "success": True, 
+                "message": "Student semester updated successfully",
+                "student_id": student_id,
+                "new_semester": new_semester
+            })
+        else:
+            return jsonify({"success": False, "message": "Failed to update student semester"}), 500
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+
+# @app.route('/get_next_student_number/<year>/<department_id>')
+# def get_next_student_number(year, department_id):
+#     """Get the next available student number for auto-generation"""
+#     try:
+#         next_number = storage_service.get_next_student_number(year, department_id)
+#         return jsonify({"success": True, "number": next_number})
+#     except Exception as e:
+#         return jsonify({"success": False, "message": str(e)}), 500
+
+# @app.route('/get_students_by_filter/<department_id>/<batch_year>/<semester>')
+# def get_students_by_filter(department_id, batch_year, semester):
+#     """Get students filtered by department, batch year and current semester"""
+#     try:
+#         students = storage_service.get_students_by_filters(department_id, batch_year, semester)
+#         return jsonify({
+#             "success": True,
+#             "students": [student.to_dict() for student in students]
+#         })
+#     except Exception as e:
+#         return jsonify({"success": False, "message": str(e)}), 500
+
+# @app.route('/get_departments')
+# def get_departments():
+#     """Get all departments"""
+#     try:
+#         departments = storage_service.get_all_departments()
+#         return jsonify([dept.to_dict() for dept in departments])
+#     except Exception as e:
+#         return jsonify({"success": False, "message": str(e)}), 500
+
+# @app.route('/admin/enroll_student', methods=['GET', 'POST'])
+# def admin_enroll_student():
+#     """Enroll student in subjects"""
+#     if request.method == 'POST':
+#         try:
+#             student_id = request.form['student_id']
+#             subject_id = request.form['subject_id']
+#             semester = request.form['semester']
+#             academic_year = request.form['academic_year']
+#             attempt = request.form.get('attempt', 1)
             
-            return redirect(url_for('index'))
-        except Exception as e:
-            logger.error(f"Registration error: {str(e)}")
-            return f"Error processing registration: {str(e)}", 500
-    
-    # GET request: show registration form
-    departments = storage_service.get_all_departments()
-    return render_template('register.html', departments=departments)
-
-
-
-
-
-
+#             # Enroll student in subject
+#             success = storage_service.enroll_student_in_subject(
+#                 student_id, subject_id, semester, academic_year, attempt)
+            
+#             if success:
+#                 return jsonify({"success": True, "message": "Student enrolled successfully"})
+#             else:
+#                 return jsonify({"success": False, "message": "Failed to enroll student"}), 500
+#         except Exception as e:
+#             return jsonify({"success": False, "message": str(e)}), 500
+#     else:
+#         # GET request - render enrollment page
+#         student_id = request.args.get('student_id')
+#         if student_id:
+#             student = storage_service.get_student(student_id)
+#             subjects = storage_service.get_subjects_for_semester(student.current_semester)
+#             return render_template('enroll_student.html', student=student, subjects=subjects)
+#         else:
+#             return redirect(url_for('register'))
 
 
 
