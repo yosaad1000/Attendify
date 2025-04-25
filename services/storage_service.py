@@ -176,3 +176,130 @@ class StorageService:
         """Get all departments"""
         from models.department import Department
         return [Department.from_dict(doc.to_dict()) for doc in self.db.collection('departments').stream()]
+    
+
+    def get_student(self, student_id):
+        """Get a student from Firestore by ID"""
+        doc = self.db.collection('students').document(student_id).get()
+        if doc.exists:
+            from models.student import Student
+            return Student.from_dict(doc.to_dict())
+        return None
+
+    def update_student(self, student):
+        """Update a student in Firestore"""
+        return self.db.collection('students').document(student.student_id).update(student.to_dict())
+
+    def update_student_semester(self, student_id, new_semester):
+        """
+        Update a student's current semester
+
+        Args:
+            student_id: Student ID
+            new_semester: New semester number
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            self.db.collection('students').document(student_id).update({
+                'current_semester': new_semester
+            })
+            return True
+        except Exception as e:
+            logger.error(f"Error updating student semester: {e}")
+            return False
+
+    def get_courses_by_department_semester(self, department_id, semester):
+        """
+        Get all courses for a specific department and semester
+
+        Args:
+            department_id: Department ID
+            semester: Semester number
+
+        Returns:
+            List of subjects (courses)
+        """
+        query = self.db.collection('subjects').where(
+            filter=FieldFilter('department_id', '==', department_id)
+        ).where(
+            filter=FieldFilter('semester', '==', semester)
+        )
+
+        from models.subject import Subject
+        return [Subject.from_dict(doc.to_dict()) for doc in query.stream()]
+
+    def enroll_student_in_courses(self, student_id, course_ids):
+        """
+        Enroll a student in multiple courses at once
+
+        Args:
+            student_id: Student ID
+            course_ids: List of course IDs
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Get the student
+            student = self.get_student(student_id)
+            if not student:
+                return False
+
+            # Add new courses to the student's enrolled courses
+            for course_id in course_ids:
+                if course_id not in student.course_enrolled_ids:
+                    student.course_enrolled_ids.append(course_id)
+
+                # Create student_subject entry
+                from models.student_subject import StudentSubject
+                student_subject = StudentSubject(
+                    id=f"{student_id}_{course_id}",
+                    student_id=student_id,
+                    subject_id=course_id,
+                    enrollment_date=datetime.now()
+                )
+                self.enroll_student_in_subject(student_subject)
+
+            # Update the student record
+            self.update_student(student)
+            return True
+        except Exception as e:
+            logger.error(f"Error enrolling student in courses: {e}")
+            return False
+        
+
+
+    def clear_student_enrollments(self, student_id):
+        """
+        Clear all course enrollments for a student
+
+        Args:
+            student_id: Student ID
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Get the student
+            student = self.get_student(student_id)
+            if not student:
+                return False
+
+            # Clear the student's enrolled courses
+            student.course_enrolled_ids = []
+            self.update_student(student)
+
+            # Delete all student_subject entries for the student
+            query = self.db.collection('student_subjects').where(
+                filter=FieldFilter('student_id', '==', student_id)
+            )
+            for doc in query.stream():
+                doc.reference.delete()
+
+            return True
+        except Exception as e:
+            logger.error(f"Error clearing student enrollments: {e}")
+            return False
+

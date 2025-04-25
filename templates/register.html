@@ -178,90 +178,53 @@
         <button class="btn btn-secondary back-button" onclick="showOptions()">
             <i class="bi bi-arrow-left"></i> Back to Options
         </button>
-        <h2 class="text-center mb-4">Update & Enroll Students</h2>
-        
-        <!-- Step 1: Select Department and Batch -->
-        <div id="step1" class="mb-4">
-            <h4 class="mb-3">Step 1: Select Student Criteria</h4>
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label for="filter_department_id">Department:</label>
-                        <select id="filter_department_id" class="form-select">
-                            <option value="">Select Department</option>
-                            {% for dept in departments %}
-                            <option value="{{ dept.id }}">{{ dept.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label for="filter_batch_year">Batch Year:</label>
-                        <select id="filter_batch_year" class="form-select">
-                            <option value="">Select Batch Year</option>
-                            {% for year in range(current_year, current_year - 5, -1) %}
-                            <option value="{{ year }}">{{ year }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label for="filter_semester">Current Semester:</label>
-                        <select id="filter_semester" class="form-select">
-                            <option value="">Select Semester</option>
-                            {% for n in range(1,9) %}
-                            <option value="{{ n }}">Semester {{ n }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="d-grid gap-2">
-                <button class="btn btn-primary" onclick="filterStudents()">Find Students</button>
-            </div>
-        </div>
-        
-        <!-- Step 2: Select Students -->
-        <div id="step2" style="display: none;" class="mb-4">
-            <h4 class="mb-3">Step 2: Select Students</h4>
-            <div class="mb-3">
-                <div class="d-flex justify-content-between mb-2">
-                    <label for="student_selector">Select Students:</label>
-                    <div>
-                        <button class="btn btn-sm btn-outline-primary me-2" onclick="selectAllStudents()">Select All</button>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="deselectAllStudents()">Deselect All</button>
-                    </div>
-                </div>
-                <select id="student_selector" class="form-select" multiple size="8">
-                    <!-- Will be populated with filtered students -->
-                </select>
-            </div>
-            
+        <h2 class="text-center mb-4">Register Existing Student</h2>
+        <form action="{{ url_for('register_existing_student') }}" method="POST" enctype="multipart/form-data">
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
-                        <label for="new_semester">Update to Semester:</label>
-                        <select id="new_semester" class="form-select">
-                            <option value="">No Change</option>
-                            {% for n in range(1,9) %}
-                            <option value="{{ n }}">Semester {{ n }}</option>
+                        <label for="department_id">Department:</label>
+                        <select name="department_id" id="department_id" class="form-select" required>
+                            <option value="">Select Department</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.dept_id }}">{{ dept.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
                 </div>
+                
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="batch_year">Batch Year:</label>
+                        <input type="number" name="batch_year" id="batch_year" 
+                               class="form-control" value="{{ current_year }}" required>
+                    </div>
+                </div>
             </div>
             
-            <div class="d-grid gap-2">
-                <button class="btn btn-primary" onclick="updateStudentSemester()">Update Semester</button>
+            <div class="mb-3">
+                <label for="student_id">Student ID:</label>
+                <input type="text" name="student_id" id="student_id" class="form-control" required>
             </div>
-        </div>
+            
+
+            <div class="mb-3">
+                <label for="new_semester">New Semester:</label>
+                <select name="new_semester" id="new_semester" class="form-select" required>
+                    <option value="">Select Semester</option>
+                    {% for n in range(1,9) %}
+                    <option value="{{ n }}">Semester {{ n }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+                        
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg mt-4">Register Student for New Semester</button>
+            </div>
+        </form>
     </div>
 </div>
+
 {% endblock %}
 
 {% block scripts %}

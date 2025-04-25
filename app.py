@@ -347,95 +347,52 @@ def register_new_student():
         storage_service.add_student(student)
 
         # Return success response for AJAX request
-        flash(f'{student.student_id} was registered successfully', 'success')
+        flash(f'{student.student_id} registered successfully', 'success')
         return redirect(url_for('register_student'))
     except Exception as e:
         return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
 
-@app.route('/register_existing_student', methods=['POST'])
+@app.route('/register_existing_student', methods=['GET', 'POST'])
 def register_existing_student():
-    """Register an existing student for a new semester"""
-    try:
+    storage_service = StorageService()
+    departments = storage_service.get_all_departments()
+    current_year = datetime.now().year
+    
+    if request.method == 'POST':
         student_id = request.form['student_id']
-        new_semester = request.form['new_semester']
+        department_id = request.form['department_id']
+        new_semester = int(request.form['new_semester'])
         
-        if not storage_service.student_exists(student_id):
-            return jsonify({"success": False, "message": "Student not found"}), 404
+        # Validate student exists
+        student = storage_service.get_student(student_id)
+        if not student:
+            flash('Student ID not found', 'danger')
+            return render_template('register_existing_student.html', 
+                                   departments=departments, 
+                                   current_year=current_year)
+        
+        # Update student semester
+        storage_service.update_student_semester(student_id, new_semester)
+        
+        # Get courses for this department and semester
+        # First clear any existing course enrollments for this student
+        storage_service.clear_student_enrollments(student_id)
+        
+        courses = storage_service.get_courses_by_department_semester(department_id, new_semester)
+        
+        if courses:
+            # Enroll student in all courses for this semester
+            course_ids = [course.subject_id for course in courses]
+            storage_service.enroll_student_in_courses(student_id, course_ids)
             
-        # Update the student's semester
-        if storage_service.update_student_semester(student_id, new_semester):
-            return jsonify({
-                "success": True, 
-                "message": "Student semester updated successfully",
-                "student_id": student_id,
-                "new_semester": new_semester
-            })
+            flash(f'Student successfully registered for semester {new_semester} with {len(courses)} courses', 'success')
         else:
-            return jsonify({"success": False, "message": "Failed to update student semester"}), 500
-    except Exception as e:
-        return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
-
-# @app.route('/get_next_student_number/<year>/<department_id>')
-# def get_next_student_number(year, department_id):
-#     """Get the next available student number for auto-generation"""
-#     try:
-#         next_number = storage_service.get_next_student_number(year, department_id)
-#         return jsonify({"success": True, "number": next_number})
-#     except Exception as e:
-#         return jsonify({"success": False, "message": str(e)}), 500
-
-# @app.route('/get_students_by_filter/<department_id>/<batch_year>/<semester>')
-# def get_students_by_filter(department_id, batch_year, semester):
-#     """Get students filtered by department, batch year and current semester"""
-#     try:
-#         students = storage_service.get_students_by_filters(department_id, batch_year, semester)
-#         return jsonify({
-#             "success": True,
-#             "students": [student.to_dict() for student in students]
-#         })
-#     except Exception as e:
-#         return jsonify({"success": False, "message": str(e)}), 500
-
-# @app.route('/get_departments')
-# def get_departments():
-#     """Get all departments"""
-#     try:
-#         departments = storage_service.get_all_departments()
-#         return jsonify([dept.to_dict() for dept in departments])
-#     except Exception as e:
-#         return jsonify({"success": False, "message": str(e)}), 500
-
-# @app.route('/admin/enroll_student', methods=['GET', 'POST'])
-# def admin_enroll_student():
-#     """Enroll student in subjects"""
-#     if request.method == 'POST':
-#         try:
-#             student_id = request.form['student_id']
-#             subject_id = request.form['subject_id']
-#             semester = request.form['semester']
-#             academic_year = request.form['academic_year']
-#             attempt = request.form.get('attempt', 1)
-            
-#             # Enroll student in subject
-#             success = storage_service.enroll_student_in_subject(
-#                 student_id, subject_id, semester, academic_year, attempt)
-            
-#             if success:
-#                 return jsonify({"success": True, "message": "Student enrolled successfully"})
-#             else:
-#                 return jsonify({"success": False, "message": "Failed to enroll student"}), 500
-#         except Exception as e:
-#             return jsonify({"success": False, "message": str(e)}), 500
-#     else:
-#         # GET request - render enrollment page
-#         student_id = request.args.get('student_id')
-#         if student_id:
-#             student = storage_service.get_student(student_id)
-#             subjects = storage_service.get_subjects_for_semester(student.current_semester)
-#             return render_template('enroll_student.html', student=student, subjects=subjects)
-#         else:
-#             return redirect(url_for('register'))
-
+            flash(f'Student\'s semester updated, but no courses found for semester {new_semester}', 'warning')
+        return redirect(url_for("register_student"))
+    
+    return render_template('register_existing_student.html', 
+                           departments=departments, 
+                           current_year=current_year)
 
 
 
