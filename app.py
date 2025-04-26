@@ -711,15 +711,17 @@ def admin_subjects():
         subject_id = request.form['subject_id']
         name = request.form['name']
         department_id = request.form['department_id']
-        credits = request.form.get('credits')
+        credits = int(request.form.get('credits', 0))
         is_elective = 'is_elective' in request.form
+        semester = int(request.form.get('semester', 1))
         
         subject = Subject(
             subject_id=subject_id,
             name=name,
             department_id=department_id,
             credits=credits,
-            is_elective=is_elective
+            is_elective=is_elective,
+            semester=semester
         )
         storage_service.add_subject(subject)
         

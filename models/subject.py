@@ -3,13 +3,14 @@ class Subject:
     Represents an academic subject/course
     """
     def __init__(self, subject_id, name, department_id, faculty_ids=None, 
-                 credits=None, is_elective=False):
+                 credits=None, is_elective=False, semester=None):
         self.subject_id = subject_id      # Subject ID (used as document ID)
         self.name = name                  # Subject name
         self.department_id = department_id # Department the subject belongs to
         self.faculty_ids = faculty_ids or [] # List of faculty IDs teaching this subject
         self.credits = credits            # Number of credits
         self.is_elective = is_elective    # Whether the subject is an elective
+        self.semester = semester          # Semester the subject is taught in
     
     @staticmethod
     def from_dict(source):
@@ -20,7 +21,8 @@ class Subject:
             department_id=source.get('department_id'),
             faculty_ids=source.get('faculty_ids', []),
             credits=source.get('credits'),
-            is_elective=source.get('is_elective', False)
+            is_elective=source.get('is_elective', False),
+            semester=source.get('semester')
         )
         return subject
     
@@ -32,5 +34,6 @@ class Subject:
             'department_id': self.department_id,
             'faculty_ids': self.faculty_ids,
             'credits': self.credits,
-            'is_elective': self.is_elective
+            'is_elective': self.is_elective,
+            'semester': self.semester
         }
