@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+{% block title %}Attendify - Mark Attendance{% endblock %}
+
+{% block extra_styles %}
+<style>
+    /* Base Styling */
+    body {
+        font-family: 'Arial', sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f9f9f9;
+        color: #333;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+        gap: 20px;
+    }
+
+    .illustration {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+    }
+
+    .illustration img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 10px;
+        transition: 0.3s;
+    }
+
+    .header-section {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .form-section {
+        width: 100%;
+        max-width: 800px;
+        background: #fff;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .selector-container {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+
+    .selector-group {
+        flex: 1;
+        min-width: 300px;
+    }
+
+    .selector-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+    }
+
+    .selector-group select {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        font-size: 1rem;
+    }
+
+    .method-tabs {
+        display: flex;
+        border-bottom: 1px solid #ccc;
+        margin-bottom: 20px;
+    }
+
+    .tab-button {
+        padding: 10px 20px;
+        background: none;
+        border: none;
+        border-bottom: 3px solid transparent;
+        cursor: pointer;
+        font-size: 1rem;
+        font-weight: bold;
+        transition: all 0.3s;
+    }
+
+    .tab-button.active {
+        border-bottom-color: #3b3b98;
+        color: #3b3b98;
+    }
+
+    .tab-content {
+        display: none;
+    }
+
+    .tab-content.active {
+        display: block;
+        animation: fadeIn 0.3s;
+    }
+
+    .camera-container, .upload-container {
+        padding: 20px 0;
+    }
+
+    #camera-view {
+        width: 100%;
+        height: 400px;
+        background-color: #eee;
+        margin-bottom: 20px;
+        border-radius: 8px;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        background-color: #3b3b98;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    .btn:hover {
+        background-color: #2d2d7a;
+    }
+
+    .upload-container input[type="file"] {
+        display: block;
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 20px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        font-size: 1rem;
+    }
+
+    /* Animation */
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .selector-container {
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .selector-group {
+            min-width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content">
+    <div class="header-section">
+        <h1>Mark Student Attendance</h1>
+    </div>
+    <div class="illustration">
+        <img src='../static/images/2202_w037_n003_224b_p1_224.jpg' alt="Illustration">
+        
+    </div>
+
+    <div class="form-section">
+        <h2>Select Subject and Faculty</h2>
+        <div class="selector-container">
+            <div class="selector-group">
+                <label for="subject">Subject</label>
+                <select id="subject" name="subject_id" required>
+                    <option value="s">-- Select Subject --</option>
+                    {% for subject in subjects %}
+                    <option value="{{ subject.subject_id }}">{{ subject.name }} ({{ subject.code }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="selector-group">
+                <label for="faculty">Faculty</label>
+                <select id="faculty" name="faculty_id" required>
+                    <option value="f">-- Select Faculty --</option>
+                    {% for f in faculty %}
+                    <option value="{{ f.faculty_id }}">{{ f.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <h3>Select a method to mark attendance:</h3>
+        <div class="method-tabs">
+            <button class="tab-button active" data-target="camera-tab">Use Camera</button>
+            <button class="tab-button" data-target="upload-tab">Upload Image</button>
+        </div>
+
+        <div class="tab-content active" id="camera-tab">
+            <div class="camera-container">
+                <div id="camera-view"></div>
+                <button id="capture-btn" class="btn">Capture Photo</button>
+                <form id="capture-form" action="{{ url_for('process_captured_image') }}" method="POST" style="display:none;">
+                    <input type="hidden" name="captured_image" id="captured-image-data">
+                    <input type="hidden" name="subject_id" id="camera-subject-id">
+                    <input type="hidden" name="faculty_id" id="camera-faculty-id">
+                </form>
+            </div>
+        </div>
+
+        <div class="tab-content" id="upload-tab">
+            <div class="upload-container">
+                <form action="{{ url_for('upload_file') }}" method="POST" enctype="multipart/form-data" id="upload-form">
+                    <input type="file" id="file" name="file" accept=".jpg, .jpeg, .png" required>
+                    <input type="hidden" name="subject_id" id="upload-subject-id">
+                    <input type="hidden" name="faculty_id" id="upload-faculty-id">
+                    <button type="submit" class="btn">Upload Image</button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    // Tab switching functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        tabButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Remove active class from all buttons and contents
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+                
+                // Add active class to clicked button
+                button.classList.add('active');
+                
+                // Show corresponding content
+                const targetId = button.getAttribute('data-target');
+                document.getElementById(targetId).classList.add('active');
+            });
+        });
+        
+        // Camera initialization code would go here
+        // For demo purposes we'll leave this commented
+        // initCamera();
+        
+        // Copy subject and faculty selections to hidden form fields
+        const subjectSelect = document.getElementById('subject');
+        const facultySelect = document.getElementById('faculty');
+        const forms = ['upload-form', 'capture-form'];
+        
+        function updateFormFields() {
+            const subjectId = subjectSelect.value;
+            const facultyId = facultySelect.value;
+            
+            document.getElementById('upload-subject-id').value = subjectId;
+            document.getElementById('upload-faculty-id').value = facultyId;
+            document.getElementById('camera-subject-id').value = subjectId;
+            document.getElementById('camera-faculty-id').value = facultyId;
+        }
+        
+        subjectSelect.addEventListener('change', updateFormFields);
+        facultySelect.addEventListener('change', updateFormFields);
+        
+        // Form validation before submission
+        // Form validation is currently disabled as it's not working as intended
+        // TODO: Fix form validation logic
+        
+        forms.forEach(formId => {
+            const form = document.getElementById(formId);
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    updateFormFields(); // Sync values to hidden fields
+                    
+                    const subjectId = subjectSelect.value;
+                    const facultyId = facultySelect.value;
+        
+                    console.log("Submitting form:", formId);
+                    console.log("Subject ID:", subjectId);
+                    console.log("Faculty ID:", facultyId);
+        
+                    if (!subjectId || !facultyId) {
+                        alert('Please select both Subject and Faculty before proceeding.');
+                    } else {
+                        console.log("Form is valid, submitting...");
+                        form.submit();
+                    }
+                });
+            }
+        });
+        
+        
+        // Capture button functionality
+        const captureBtn = document.getElementById('capture-btn');
+        if (captureBtn) {
+            captureBtn.addEventListener('click', function() {
+                // In a real implementation, this would capture the camera image
+                // For now, we'll just simulate a capture
+                if (confirm('Capture image and process attendance?')) {
+                    // In real implementation, would set the captured-image-data field with base64 data
+                    // document.getElementById('captured-image-data').value = 'base64data...';
+                    document.getElementById('capture-form').submit();
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Faculty{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Flash Messages -->
+
+
+    <h2>Manage Faculty</h2>
+    
+    <!-- Faculty Form -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Add New Faculty</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('admin_faculty') }}">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="faculty_id">Faculty ID (optional)</label>
+                            <input type="text" class="form-control" id="faculty_id" name="faculty_id"
+                                   placeholder="Leave blank for auto-generation">
+                            <small class="form-text text-muted">Auto-format: TE00{DeptID}{Number}</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="department">Department</label>
+                            <select class="form-control" id="department" name="department" required>
+                                <option value="">Select Department</option>
+                                {% for dept in departments %}
+                                <option value="{{ dept.dept_id }}">{{ dept.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="name">Name</label>
+                            <input type="text" class="form-control" id="name" name="name" required>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary mt-3">Add Faculty</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Faculty List Grouped by Department -->
+    <h4 class="mb-3">Faculty by Department</h4>
+    
+    {% for dept in departments %}
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5>{{ dept.name }}</h5>
+        </div>
+        <div class="card-body">
+            {% set found = false %}
+            
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Faculty ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Assign Subjects</th>
+                            <th>Remove</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for f in faculty %}
+                            {% if (f.departments is string and f.departments == dept.dept_id) or (f.departments is not string and dept.dept_id in f.departments) %}
+                                {% set found = true %}
+                                <tr>
+                                    <td>{{ f.faculty_id }}</td>
+                                    <td>{{ f.name }}</td>
+                                    <td>{{ f.email }}</td>
+                                    <td>
+                                        <a href="{{ url_for('assign_subjects', faculty_id=f.faculty_id) }}" class="btn btn-sm btn-secondary">Assign</a>
+                                    </td>
+                                    <td>
+                                        <form method="POST" action="{{ url_for('remove_faculty', faculty_id=f.faculty_id) }}" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-danger" 
+                                                onclick="return confirm('Are you sure you want to remove this faculty?')">
+                                                Remove
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        {% endfor %}
+                        
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const departmentSelect = document.getElementById('department');
+    const facultyIdInput = document.getElementById('faculty_id');
+    
+    departmentSelect.addEventListener('change', function() {
+        if (!facultyIdInput.value) {  // Only suggest if ID field is empty
+            const deptId = this.value;
+            if (deptId) {
+                // This is just a suggestion, actual generation happens server-side
+                fetch(`/api/faculty/count?department=${deptId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const nextNumber = data.count + 1;
+                        facultyIdInput.placeholder = `TE00${deptId}${nextNumber}`;
+                    })
+                    .catch(error => {
+                        facultyIdInput.placeholder = `TE00${deptId}X`;
+                    });
+            } else {
+                facultyIdInput.placeholder = "Leave blank for auto-generation";
+            }
+        }
+    });
+    
+    // Clear placeholder when user starts typing
+    facultyIdInput.addEventListener('input', function() {
+        if (this.value) {
+            this.placeholder = "";
+        } else if (departmentSelect.value) {
+            this.placeholder = `TE00${departmentSelect.value}X`;
+        } else {
+            this.placeholder = "Leave blank for auto-generation";
+        }
+    });
+});
+</script>
+{% endblock %}

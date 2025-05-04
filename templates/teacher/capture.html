@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Capture Attendance{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Capture Attendance</h2>
+    
+    <div class="alert alert-info">
+        <strong>Subject:</strong>
+        <span id="selected-subject"></span>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h5>Capture Student Faces</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="video-container mb-3">
+                        <video id="video" width="100%" autoplay></video>
+                    </div>
+                    <button id="capture-btn" class="btn btn-primary btn-block">Capture Image</button>
+                </div>
+                <div class="col-md-6">
+                    <div class="captured-image-container">
+                        <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
+                        <img id="captured-image" class="img-fluid" style="display: none;">
+                    </div>
+<!-- In teacher/capture_attendance.html -->
+                        <form id="upload-form" action="{{ url_for('process_captured_image') }}" method="post" enctype="multipart/form-data" style="display: none;">
+                            <input type="hidden" name="subject_id" value="{{ session.subject_id }}">
+                            <input type="hidden" name="faculty_id" value="{{ session.faculty_id }}">
+                            <input type="hidden" name="captured_image" id="captured-image-data">
+                            <button type="submit" class="btn btn-success btn-block mt-3">Process Attendance</button>
+                        </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const captureBtn = document.getElementById('capture-btn');
+    const capturedImage = document.getElementById('captured-image');
+    const capturedImageData = document.getElementById('captured-image-data');
+    const uploadForm = document.getElementById('upload-form');
+    
+    // Display selected subject
+    document.getElementById('selected-subject').textContent = "{{ session.subject_id }}";
+    
+    // Get access to the camera
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function(stream) {
+                video.srcObject = stream;
+                video.play();
+            })
+            .catch(function(err) {
+                console.error("Error accessing the camera: ", err);
+                alert("Error accessing the camera. Please allow camera access or try uploading an image instead.");
+            });
+    }
+    
+    // Capture image when the button is clicked
+    captureBtn.addEventListener('click', function() {
+        const context = canvas.getContext('2d');
+        // Draw video frame to canvas
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Convert canvas to data URL
+        const dataURL = canvas.toDataURL('image/png');
+        
+        // Display captured image
+        capturedImage.src = dataURL;
+        capturedImage.style.display = 'block';
+        
+        // Store image data for form submission
+        capturedImageData.value = dataURL;
+        
+        // Show the upload form
+        uploadForm.style.display = 'block';
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}

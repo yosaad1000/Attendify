@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}View Attendance{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Attendance Report</h2>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Student Information</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <p><strong>Name:</strong> {{ student.name }}</p>
+                </div>
+                <div class="col-md-4">
+                    <p><strong>ID:</strong> {{ student.student_id }}</p>
+                </div>
+                <div class="col-md-4">
+                    <p><strong>Department:</strong> 
+                    <!-- Department name would need to be passed from the view -->
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h5>Attendance Summary</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Subject Code</th>
+                        <th>Subject Name</th>
+                        <th>Classes Attended</th>
+                        <th>Total Classes</th>
+                        <th>Attendance %</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in attendance_data %}
+                    <tr>
+                        <td>{{ item.subject_code }}</td>
+                        <td>{{ item.subject_name }}</td>
+                        <td>{{ item.days_present }}</td>
+                        <td>{{ item.total_days }}</td>
+                        <td>{{ item.percentage }}%</td>
+                        <td>
+                            {% if item.percentage >= 75 %}
+                                <span class="badge bg-success">Good</span>
+                            {% elif item.percentage >= 65 %}
+                                <span class="badge bg-warning">Warning</span>
+                            {% else %}
+                                <span class="badge bg-danger">Low</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <div class="mt-4">
+                <div class="card">
+                    <div class="card-body">
+                        <canvas id="attendanceChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Prepare data for chart
+    const subjects = [{% for item in attendance_data %} "{{ item.subject_code }}", {% endfor %}];
+    const percentages = [{% for item in attendance_data %} {{ item.percentage }}, {% endfor %}];
+    const present = [{% for item in attendance_data %} {{ item.days_present }}, {% endfor %}];
+    const total = [{% for item in attendance_data %} {{ item.total_days }}, {% endfor %}];
+    
+    // Create chart
+    const ctx = document.getElementById('attendanceChart').getContext('2d');
+    const attendanceChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: subjects,
+            datasets: [{
+                label: 'Attendance Percentage',
+                data: percentages,
+                backgroundColor: percentages.map(p => {
+                    if (p >= 75) return 'rgba(75, 192, 75, 0.6)';
+                    if (p >= 65) return 'rgba(255, 206, 86, 0.6)';
+                    return 'rgba(255, 99, 132, 0.6)';
+                }),
+                borderColor: percentages.map(p => {
+                    if (p >= 75) return 'rgba(75, 192, 75, 1)';
+                    if (p >= 65) return 'rgba(255, 206, 86, 1)';
+                    return 'rgba(255, 99, 132, 1)';
+                }),
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'Attendance %'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Subjects'
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}

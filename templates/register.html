@@ -1,177 +1,247 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Attendify-New Register</title>
-    <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f9f9f9;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
+{% extends "base.html" %}
 
-        .navbar {
-            background-color: #3b3b98;
-            padding: 15px 30px;
-            color: #fff;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+{% block title %}Student Registration - Attendify{% endblock %}
 
-        .navbar a {
-            color: #fff;
-            text-decoration: none;
-            font-size: 1.2rem;
-            margin-left: 20px;
-        }
+{% block extra_styles %}
+<style>
+    .option-card {
+        transition: all 0.3s ease;
+        cursor: pointer;
+        height: 100%;
+    }
+    
+    .option-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+    }
+    
+    .card-icon {
+        font-size: 3rem;
+        color: #3b3b98;
+        margin-bottom: 15px;
+    }
+    
+    .form-container {
+        display: none;
+        background: #fff;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        margin-top: 30px;
+    }
+    
+    .active-form {
+        display: block;
+    }
+    
+    .back-button {
+        margin-bottom: 20px;
+    }
+    
+    .form-container form label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+        color: #333;
+    }
 
-        .navbar a:hover {
-            text-decoration: underline;
-        }
+    .capture-button {
+        display: inline-block;
+        text-align: center;
+        background-color: #3b3b98;
+        color: #fff;
+        padding: 12px 20px;
+        font-size: 1rem;
+        border-radius: 5px;
+        text-decoration: none;
+        transition: 0.3s;
+        margin: 10px 0;
+        width: 100%;
+    }
 
-        .footer {
-            background-color: #3b3b98;
-            color: #fff;
-            text-align: center;
-            padding: 10px 0;
-            font-size: 1rem;
-        }
+    .capture-button:hover {
+        background-color: #2d2d7a;
+    }
 
-        .content-container {
-            flex: 1;
-            padding: 20px;
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            justify-content: center;
-        }
+    .image-preview {
+        max-width: 200px;
+        margin: 10px 0;
+        display: none;
+    }
+</style>
+{% endblock %}
 
-        .illustration {
-            flex: 1;
-            text-align: center;
-            padding: 20px;
-        }
-
-        .illustration img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 10px;
-        }
-
-        .form-container {
-            flex: 1;
-            padding: 20px;
-        }
-
-        .form-container form {
-            background-color: #fff;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 500px;
-        }
-
-        .form-container form label {
-            display: block;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-
-        .form-container form input {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 20px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 1rem;
-        }
-
-        .form-container form input[type="submit"] {
-            background-color: #3b3b98;
-            color: #fff;
-            font-size: 1.2rem;
-            font-weight: bold;
-            border: none;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        .form-container form input[type="submit"]:hover {
-            background-color: #2d2d7a;
-        }
-
-        .capture-button {
-            display: block;
-            text-align: center;
-            margin-top: 10px;
-            background-color: #3b3b98;
-            color: #fff;
-            padding: 10px;
-            font-size: 1rem;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            text-decoration: none;
-            font-weight: bold;
-        }
-
-        .capture-button:hover {
-            background-color: #2d2d7a;
-        }
-    </style>
-</head>
-<body>
-    <div class="navbar">
-        <div class="logo">Attendify</div>
-        <div class="links">
-            <a href="{{ url_for('index') }}"> Home </a>
-            <a href="{{ url_for('register_student') }}">Register Student</a>
-            <a href="{{ url_for('uploading') }}">Upload Img</a>
-            <a href="{{ url_for('attendify') }}">Log Out</a>
+{% block content %}
+<div class="container mt-5">
+    <h1 class="text-center mb-5">Student Management System</h1>
+    
+    <!-- Option Selection Cards -->
+    <div id="option-cards" class="row mb-5">
+        <div class="col-md-6 mb-4">
+            <div class="card option-card text-center p-4" onclick="showForm('register-new')">
+                <div class="card-body">
+                    <div class="card-icon">
+                        <i class="bi bi-person-plus-fill"></i>📝
+                    </div>
+                    <h3 class="card-title">Register New Student</h3>
+                    <p class="card-text">Add a new student to the system with their details and photograph</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="card option-card text-center p-4" onclick="showForm('enroll-existing')">
+                <div class="card-body">
+                    <div class="card-icon">
+                        <i class="bi bi-journal-check"></i>📚
+                    </div>
+                    <h3 class="card-title">Update & Enroll Students</h3>
+                    <p class="card-text">Manage existing students' semester details and subject enrollments</p>
+                </div>
+            </div>
         </div>
     </div>
-    <div class="content-container">
-        <div class="illustration">
-            <img src="static/images/4155936.png" alt="Illustration">
-        </div>
-        <div class="form-container">
-            <h2 style="color:#2d2d7a">Register New Student</h2>
-            <form action="{{ url_for('register_student') }}" method="POST" enctype="multipart/form-data">
-                <label for="name">Student Name:</label>
-                <input type="text" name="name" id="name" required>
-        
+    
+    <!-- Register New Student Form -->
+    <div id="register-new-form" class="form-container">
+        <button class="btn btn-secondary back-button" onclick="showOptions()">
+            <i class="bi bi-arrow-left"></i> Back to Options
+        </button>
+        <h2 class="text-center mb-4">Register New Student</h2>
+        <form action="{{ url_for('register_new_student') }}" method="POST" enctype="multipart/form-data">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="department_id">Department:</label>
+                        <select name="department_id" id="department_id" class="form-select" required>
+                            <option value="">Select Department</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.dept_id }}">{{ dept.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="batch_year">Batch Year:</label>
+                        <input type="number" name="batch_year" id="batch_year" 
+                               class="form-control" value="{{ current_year }}" required>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="name">Student Name:</label>
+                        <input type="text" name="name" id="name" class="form-control" required>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="email">Email:</label>
+                        <input type="email" name="email" id="email" class="form-control">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
                 <label for="student_id">Student ID:</label>
-                <input type="text" name="student_id" id="student_id" required>
-        
+                <input type="text" name="student_id" id="student_id" class="form-control" required>
+            </div>
+            
+            <div class="mb-3">
+                <label for="current_semester">Current Semester:</label>
+                <select name="current_semester" id="current_semester" class="form-select" required>
+                    <option value="">Select Semester</option>
+                    {% for n in range(1,9) %}
+                    <option value="{{ n }}">Semester {{ n }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="mb-3">
                 <label for="file">Upload Student Image:</label>
-                {% if captured_image %}
-                <img src="{{ url_for('uploads', filename=captured_image) }}" alt="Captured Image" style="width: 100%; margin-bottom: 20px;">
-                <input type="hidden" name="captured_image" value="{{ captured_image }}">
-                {% else %}
-                <input type="file" name="file" id="file" accept=".jpg, .jpeg, .png" required>
-                <p style="text-align: center; margin: 10px 0;  margin-bottom:20px; color: #3b3b98; font-weight: bold;">OR</p>
-
-                <!-- Redirects to capture route -->
-                <a href="{{ url_for('capture') }}" style=" margin-bottom:10px; font-size: 1.2rem; "class="capture-button">Capture Image from Camera</a>
-
-                {% endif %}
-        
-                <input type="submit" value="Register">
-            </form>
-        </div>
-        
-
-
+                <input type="file" name="file" id="file" class="form-control" accept=".jpg, .jpeg, .png">
+            </div>
+            
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg mt-4">Register Student</button>
+            </div>
+        </form>
     </div>
-    <div class="footer">
-        &copy; 2024 Attendify. All rights reserved.
+    
+    <!-- Enroll Existing Student Form -->
+    <div id="enroll-existing-form" class="form-container">
+        <button class="btn btn-secondary back-button" onclick="showOptions()">
+            <i class="bi bi-arrow-left"></i> Back to Options
+        </button>
+        <h2 class="text-center mb-4">Register Existing Student</h2>
+        <form action="{{ url_for('register_existing_student') }}" method="POST" enctype="multipart/form-data">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="department_id">Department:</label>
+                        <select name="department_id" id="department_id" class="form-select" required>
+                            <option value="">Select Department</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.dept_id }}">{{ dept.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="batch_year">Batch Year:</label>
+                        <input type="number" name="batch_year" id="batch_year" 
+                               class="form-control" value="{{ current_year }}" required>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="student_id">Student ID:</label>
+                <input type="text" name="student_id" id="student_id" class="form-control" required>
+            </div>
+            
+
+            <div class="mb-3">
+                <label for="new_semester">New Semester:</label>
+                <select name="new_semester" id="new_semester" class="form-select" required>
+                    <option value="">Select Semester</option>
+                    {% for n in range(1,9) %}
+                    <option value="{{ n }}">Semester {{ n }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+                        
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg mt-4">Register Student for New Semester</button>
+            </div>
+        </form>
     </div>
-</body>
-</html>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Form visibility management
+    function showForm(formId) {
+        document.getElementById('option-cards').style.display = 'none';
+        document.getElementById(formId + '-form').classList.add('active-form');
+    }
+
+    function showOptions() {
+        document.getElementById('option-cards').style.display = 'flex';
+        document.querySelectorAll('.form-container').forEach(form => form.classList.remove('active-form'));
+        document.getElementById('step1').style.display = 'block';
+        document.getElementById('step2').style.display = 'none';
+    }
+
+   
+</script>
+{% endblock %}

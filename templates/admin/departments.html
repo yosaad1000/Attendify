@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Departments{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Manage Departments</h2>
+    
+    <!-- Department Form -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Add New Department</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('admin_departments') }}">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="dept_id">Department ID</label>
+                            <input type="text" class="form-control" id="dept_id" name="dept_id" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="name">Department Name</label>
+                            <input type="text" class="form-control" id="name" name="name" required>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary mt-3">Add Department</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Departments List -->
+    <div class="card">
+        <div class="card-header">
+            <h5>Existing Departments</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Department ID</th>
+                        <th>Name</th>
+                        <th>Head of Department</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dept in departments %}
+                    <tr>
+                        <td>{{ dept.dept_id }}</td>
+                        <td>{{ dept.name }}</td>
+                        <td>
+                            {% if dept.hod %}
+                                {% for f in faculty %}
+                                    {% if f.faculty_id == dept.hod %}
+                                        {{ f.name }}
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-muted">Not assigned</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form method="POST" action="{{ url_for('set_hod') }}" class="form-inline">
+                                <input type="hidden" name="dept_id" value="{{ dept.dept_id }}">
+                                <select class="form-control form-control-sm mr-2" name="hod_id">
+                                    <option value="">Select HOD</option>
+                                    {% for f in faculty %}
+                                        {% if f.departments == dept.dept_id %}
+                                        <option value="{{ f.faculty_id }}" {% if dept.hod == f.faculty_id %}selected{% endif %}>
+                                            {{ f.name }}
+                                        </option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="btn btn-sm btn-primary">Set HOD</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,53 +1,142 @@
-{%extends 'base.html'%}
-{%block title%}    
-Attendance Dashboard{%endblock%}
+{% extends 'base.html' %}
+{% block title %}    
+Attendance Dashboard
+{% endblock %}
 
-{%block extra_styles%}
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
+{% block extra_styles %}
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f4f9;
+    }
 
-        h1 {
-            color: #3b3b98;
-            text-align: center;
-        }
+    .container {
+        width: 90%;
+        margin: 0 auto;
+        padding: 20px;
+        box-sizing: border-box;
+    }
 
+    h1 {
+        color: #3b3b98;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    p {
+        text-align: center;
+        font-size: 1.1rem;
+        color: #555;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        background-color: #fff;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    th, td {
+        text-align: center;
+        padding: 15px;
+    }
+
+    th {
+        background-color: #3b3b98;
+        color: white;
+        font-size: 1.1rem;
+    }
+
+    tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+
+    tr:hover {
+        background-color: #e6e6fa;
+        transition: background 0.3s;
+    }
+
+    td {
+        font-size: 1rem;
+        color: #333;
+    }
+
+    .footer {
+        text-align: center;
+        margin-top: 30px;
+        font-size: 0.9rem;
+        color: #777;
+    }
+
+    /* ✅ Responsive Design */
+    @media (max-width: 1024px) {
         table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        table, th, td {
-            border: 1px solid #ccc;
+            font-size: 0.9rem;
         }
 
         th, td {
-            text-align: center;
+            padding: 12px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .container {
+            width: 95%;
+            padding: 15px;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+        }
+
+        p {
+            font-size: 1rem;
+        }
+
+        table {
+            font-size: 0.85rem;
+        }
+
+        th, td {
+            padding: 10px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .container {
+            width: 100%;
             padding: 10px;
         }
 
-        th {
-            background-color: #3b3b98;
-            color: white;
+        h1 {
+            font-size: 1.5rem;
         }
 
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
+        p {
+            font-size: 0.95rem;
         }
 
-        .footer {
-            text-align: center;
-            margin-top: 20px;
-            font-size: 0.9rem;
+        table {
+            font-size: 0.8rem;
         }
-    </style>
-{%endblock%}
-{%block content%}
+
+        th, td {
+            padding: 8px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
     <h1>Attendance Dashboard</h1>
     <p>Total Attendance Days: {{ total_days }}</p>
+    
     <table>
         <thead>
             <tr>
@@ -59,14 +148,18 @@ Attendance Dashboard{%endblock%}
         </thead>
         <tbody>
             {% for row in attendance_data %}
-                <tr>
-                    <td>{{ row.student_id }}</td>
-                    <td>{{ row.name }}</td>
-                    <td>{{ row.days_present }}</td>
-                    <td>{{ row.percentage }}%</td>
-                </tr>
+            <tr>
+                <td>{{ row.student_id }}</td>
+                <td>{{ row.name }}</td>
+                <td>{{ row.days_present }}</td>
+                <td>{{ row.percentage }}%</td>
+            </tr>
             {% endfor %}
         </tbody>
     </table>
-{%endblock%}
 
+    <div class="footer">
+        <p>Attendance data is auto-generated and updated in real time.</p>
+    </div>
+</div>
+{% endblock %}

@@ -32,6 +32,7 @@
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
             overflow: hidden;
             position: relative;
+            transition: all 0.3s ease-in-out;
         }
 
         .back-button {
@@ -47,6 +48,7 @@
             padding: 5px;
             border-radius: 50%;
             transition: background-color 0.2s ease-in-out;
+            z-index: 10;
         }
 
         .back-button:hover {
@@ -93,6 +95,11 @@
             font-size: 1rem;
             background-color: #3498DB;
             margin-top: 20px;
+            transition: background 0.3s;
+        }
+
+        .left-column form .sign-up-button:hover {
+            background-color: #2980B9;
         }
 
         .right-column {
@@ -107,11 +114,56 @@
         .right-column img {
             width: 100%;
             height: auto;
+            transition: transform 0.3s;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .left-column, .right-column {
+                flex: none;
+                width: 100%;
+            }
+
+            .left-column {
+                padding: 30px;
+            }
+
+            .right-column {
+                height: 300px;
+            }
+
+            .right-column img {
+                width: 100%;
+                height: auto;
+            }
         }
 
         @media (max-width: 768px) {
             .container {
                 flex-direction: column;
+                width: 100%;
+                box-shadow: none;
+            }
+
+            .left-column {
+                padding: 20px;
+            }
+
+            .left-column h1 {
+                font-size: 2rem;
+            }
+
+            .left-column p {
+                font-size: 0.9rem;
+            }
+
+            .left-column form input, .sign-up-button {
+                font-size: 0.9rem;
+                padding: 10px;
             }
 
             .right-column {
@@ -119,8 +171,41 @@
             }
 
             .right-column img {
-                height: 100%;
-                width: auto;
+                width: 100%;
+                height: auto;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                width: 100%;
+                padding: 10px;
+            }
+
+            .left-column {
+                padding: 20px;
+            }
+
+            .left-column h1 {
+                font-size: 1.8rem;
+            }
+
+            .left-column p {
+                font-size: 0.8rem;
+            }
+
+            .left-column form input, .sign-up-button {
+                font-size: 0.85rem;
+                padding: 8px;
+            }
+
+            .right-column {
+                height: 180px;
+            }
+
+            .right-column img {
+                width: 100%;
+                height: auto;
             }
         }
     </style>
@@ -148,11 +233,5 @@
             <img src="static/images/image 2.png" alt="Illustration">
         </div>
     </div>
-    <!-- <script>
-        // Back Button Alert
-        document.querySelector('.back-button').addEventListener('click', () => {
-            alert('Back button clicked!');
-        });
-    </script> -->
 </body>
 </html>
