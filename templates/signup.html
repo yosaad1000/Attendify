@@ -1,237 +1,269 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Attendify-Signup</title>
-    <style>
-        /* Embedded Styles */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Arial', sans-serif;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendify-Signup</title>
+  <style>
+    /* === Embedded Styles === */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Arial', sans-serif;
+    }
 
-        body {
-            background-color: #f9f9f9;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 20px;
-        }
+    body {
+      background-color: #f9f9f9;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
 
-        .container {
-            background: #fff;
-            display: flex;
-            flex-direction: row;
-            width: 100%;
-            max-width: 1200px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            position: relative;
-            transition: all 0.3s ease-in-out;
-        }
+    .container {
+      background: #fff;
+      display: flex;
+      flex-direction: row;
+      width: 100%;
+      max-width: 1200px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      position: relative;
+      transition: all 0.3s ease-in-out;
+    }
 
-        .back-button {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            font-size: 16px;
-            background: none;
-            color: #000;
-            border: none;
-            cursor: pointer;
-            font-size: 24px;
-            padding: 5px;
-            border-radius: 50%;
-            transition: background-color 0.2s ease-in-out;
-            z-index: 10;
-        }
+    .back-button {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      font-size: 24px;
+      background: none;
+      color: #000;
+      border: none;
+      cursor: pointer;
+      padding: 5px;
+      border-radius: 50%;
+      transition: background-color 0.2s ease-in-out;
+      z-index: 10;
+    }
 
-        .back-button:hover {
-            background-color: rgba(0, 0, 0, 0.1);
-        }
+    .back-button:hover {
+      background-color: rgba(0, 0, 0, 0.1);
+    }
 
-        .left-column {
-            flex: 1;
-            padding: 40px 30px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
+    .left-column {
+      flex: 1;
+      padding: 40px 30px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
 
-        .left-column h1 {
-            color: #2C3E50;
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-        }
+    .left-column h1 {
+      color: #2C3E50;
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+    }
 
-        .left-column p {
-            font-size: 1rem;
-            color: #7F8C8D;
-            margin-bottom: 30px;
-        }
+    .left-column p {
+      font-size: 1rem;
+      color: #7F8C8D;
+      margin-bottom: 30px;
+    }
 
-        .left-column form input {
-            display: block;
-            width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-            font-size: 1rem;
-        }
+    .left-column form input {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+      font-size: 1rem;
+    }
 
-        .left-column form .sign-up-button {
-            width: 100%;
-            padding: 12px;
-            border: none;
-            color: #fff;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 1rem;
-            background-color: #3498DB;
-            margin-top: 20px;
-            transition: background 0.3s;
-        }
+    .left-column form .sign-up-button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      color: #fff;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1rem;
+      background-color: #3498DB;
+      margin-top: 20px;
+      transition: background 0.3s;
+    }
 
-        .left-column form .sign-up-button:hover {
-            background-color: #2980B9;
-        }
+    .left-column form .sign-up-button:hover {
+      background-color: #2980B9;
+    }
 
-        .right-column {
-            flex: 1;
-            background-color: #f4f4f4;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-        }
+    .right-column {
+      flex: 1;
+      background-color: #f4f4f4;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
 
-        .right-column img {
-            width: 100%;
-            height: auto;
-            transition: transform 0.3s;
-        }
+    .right-column img {
+      width: 100%;
+      height: auto;
+      transition: transform 0.3s;
+    }
 
-        /* Responsive Design */
-        @media (max-width: 1024px) {
-            .container {
-                flex-direction: column;
-            }
+    @media (max-width: 1024px) {
+      .container {
+        flex-direction: column;
+      }
 
-            .left-column, .right-column {
-                flex: none;
-                width: 100%;
-            }
+      .left-column, .right-column {
+        flex: none;
+        width: 100%;
+      }
 
-            .left-column {
-                padding: 30px;
-            }
+      .left-column {
+        padding: 30px;
+      }
 
-            .right-column {
-                height: 300px;
-            }
+      .right-column {
+        height: 300px;
+      }
+    }
 
-            .right-column img {
-                width: 100%;
-                height: auto;
-            }
-        }
+    @media (max-width: 768px) {
+      .left-column h1 {
+        font-size: 2rem;
+      }
 
-        @media (max-width: 768px) {
-            .container {
-                flex-direction: column;
-                width: 100%;
-                box-shadow: none;
-            }
+      .left-column p {
+        font-size: 0.9rem;
+      }
 
-            .left-column {
-                padding: 20px;
-            }
+      .left-column form input, .sign-up-button {
+        font-size: 0.9rem;
+        padding: 10px;
+      }
 
-            .left-column h1 {
-                font-size: 2rem;
-            }
+      .right-column {
+        height: 200px;
+      }
+    }
 
-            .left-column p {
-                font-size: 0.9rem;
-            }
+    @media (max-width: 480px) {
+      .left-column h1 {
+        font-size: 1.8rem;
+      }
 
-            .left-column form input, .sign-up-button {
-                font-size: 0.9rem;
-                padding: 10px;
-            }
+      .left-column p {
+        font-size: 0.8rem;
+      }
 
-            .right-column {
-                height: 200px;
-            }
+      .left-column form input, .sign-up-button {
+        font-size: 0.85rem;
+        padding: 8px;
+      }
 
-            .right-column img {
-                width: 100%;
-                height: auto;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .container {
-                width: 100%;
-                padding: 10px;
-            }
-
-            .left-column {
-                padding: 20px;
-            }
-
-            .left-column h1 {
-                font-size: 1.8rem;
-            }
-
-            .left-column p {
-                font-size: 0.8rem;
-            }
-
-            .left-column form input, .sign-up-button {
-                font-size: 0.85rem;
-                padding: 8px;
-            }
-
-            .right-column {
-                height: 180px;
-            }
-
-            .right-column img {
-                width: 100%;
-                height: auto;
-            }
-        }
-    </style>
+      .right-column {
+        height: 180px;
+      }
+    }
+  </style>
 </head>
 <body>
-    <!-- Back Button -->
-    <a href="{{url_for('attendify')}}" class="back-button">&larr;</a>
+  <!-- Back Button -->
+  <a href="/" class="back-button">&larr;</a>
 
-    <div class="container">
-        <!-- Left Column -->
-        <div class="left-column">
-            <h1>Welcome to NITG</h1>
-            <p>Let access all work from here</p>
-            <form method="POST">
-                <input type="text" placeholder="Full Name" required>
-                <input type="email" placeholder="Email Address" required>
-                <input type="password" placeholder="Create Password" required>
-                <input type="password" placeholder="Re-enter Password" required>
-                <button type="submit" class="sign-up-button">Sign Up</button>
-            </form>
-        </div>
-
-        <!-- Right Column -->
-        <div class="right-column">
-            <img src="static/images/image 2.png" alt="Illustration">
-        </div>
+  <div class="container">
+    <!-- Left Column -->
+    <div class="left-column">
+      <h1>Welcome to NITG</h1>
+      <p>Let access all work from here</p>
+      <form id="signupForm">
+        <input type="text" id="fullName" placeholder="Full Name" required />
+        <input type="email" id="email" placeholder="Email Address" required />
+        <input type="password" id="password" placeholder="Create Password" required />
+        <input type="password" id="confirmPassword" placeholder="Re-enter Password" required />
+        <button type="submit" class="sign-up-button">Sign Up</button>
+      </form>
     </div>
+
+    <!-- Right Column -->
+    <div class="right-column">
+      <img src="static/images/image 2.png" alt="Illustration" />
+    </div>
+  </div>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+  <!-- Firebase Config -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCm-eLuJ9vRpWCIxgeQSiTfexX0kj3a-XM",
+      authDomain: "attendify-e010f.firebaseapp.com",
+      projectId: "attendify-e010f",
+      storageBucket: "attendify-e010f.firebasestorage.app",
+      messagingSenderId: "185015955387",
+      appId: "1:185015955387:web:ad3c03851e5d46911b1e9e",
+      measurementId: "G-6PVWRF499T"
+    };
+
+    // Initialize Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+  </script>
+
+  <!-- Signup Logic -->
+  <script>
+    const signupForm = document.getElementById("signupForm");
+
+    signupForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const fullName = document.getElementById("fullName").value;
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      const confirmPassword = document.getElementById("confirmPassword").value;
+
+      if (password !== confirmPassword) {
+        alert("Passwords do not match.");
+        return;
+      }
+
+      auth.createUserWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          const user = userCredential.user;
+
+          // Update display name
+          return user.updateProfile({
+            displayName: fullName
+          }).then(() => {
+            // Save additional data to Firestore
+            return db.collection("users").doc(user.uid).set({
+              uid: user.uid,
+              name: fullName,
+              email: user.email,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          });
+        })
+        .then(() => {
+          alert("Signup successful! Redirecting to login...");
+          window.location.href = "/login";
+        })
+        .catch((error) => {
+          console.error("Signup error:", error);
+          alert("Signup failed: " + error.message);
+        });
+    });
+  </script>
 </body>
 </html>
