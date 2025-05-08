@@ -108,9 +108,6 @@ class StorageService:
         """Check if a student exists in Firestore"""
         return self.db.collection('students').document(student_id).get().exists
     
-    def enroll_student_in_subject(self, student_subject):
-        """Enroll a student in a subject"""
-        return self.db.collection('student_subjects').document(student_subject.id).set(student_subject.to_dict())
     
     def record_attendance(self, attendance):
         """Record student attendance"""
@@ -289,10 +286,10 @@ class StorageService:
     def clear_student_enrollments(self, student_id):
         """
         Clear all course enrollments for a student
-    
+
         Args:
             student_id: Student ID
-    
+
         Returns:
             True if successful, False otherwise
         """
@@ -302,27 +299,26 @@ class StorageService:
             if not student:
                 logger.error(f"Student {student_id} not found")
                 return False
-            
+
             # Clear the student's course enrollments
             student.course_enrolled_ids = []
             self.update_student(student)
-            
+
             # Find all subjects that have this student enrolled
             subjects = self.db.collection('subjects').stream()
-            
+
             for subject_doc in subjects:
                 subject_data = subject_doc.to_dict()
                 enrolled_students = subject_data.get('enrolled_students', [])
-                
+
                 # If student is enrolled in this subject, remove them
                 if student_id in enrolled_students:
                     enrolled_students.remove(student_id)
                     self.db.collection('subjects').document(subject_doc.id).update({
                         'enrolled_students': enrolled_students
                     })
-                    
+
             return True
         except Exception as e:
             logger.error(f"Error clearing student enrollments: {e}")
             return False
-    

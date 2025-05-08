@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Bulk Enroll Student{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Bulk Enroll Student in Semester Courses</h2>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Enroll in All Department Semester Courses</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('admin_bulk_enroll_student') }}">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="student_id">Student</label>
+                            <select class="form-control" id="student_id" name="student_id" required>
+                                <option value="">-- Select Student --</option>
+                                {% for student in students %}
+                                <option value="{{ student.student_id }}">
+                                    {{ student.name }} ({{ student.student_id }})
+                                    {% if student.current_semester %}
+                                    - Semester {{ student.current_semester }}
+                                    {% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="department_id">Department</label>
+                            <select class="form-control" id="department_id" name="department_id" required>
+                                <option value="">-- Select Department --</option>
+                                {% for dept in departments %}
+                                <option value="{{ dept.dept_id }}">{{ dept.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="semester">Semester</label>
+                            <select class="form-control" id="semester" name="semester" required>
+                                <option value="">-- Select Semester --</option>
+                                {% for i in range(1, 9) %}
+                                <option value="{{ i }}">Semester {{ i }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="clear_existing" name="clear_existing" value="true">
+                            <label class="form-check-label" for="clear_existing">
+                                Clear existing enrollments before adding new ones
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="update_semester" name="update_semester" value="true" checked>
+                            <label class="form-check-label" for="update_semester">
+                                Update student's current semester
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary mt-3">Bulk Enroll Student</button>
+            </form>
+        </div>
+    </div>
+    
+    <div class="alert alert-info" role="alert">
+        <h5>How it works:</h5>
+        <ul>
+            <li>This will enroll the selected student in all courses for the specified department and semester.</li>
+            <li>If "Clear existing enrollments" is checked, the student will be removed from all currently enrolled courses first.</li>
+            <li>If "Update student's current semester" is checked, the student's record will be updated with the new semester.</li>
+        </ul>
+    </div>
+    
+    <div class="mt-4">
+        <a href="{{ url_for('admin_enroll_student') }}" class="btn btn-secondary">Back to Individual Enrollment</a>
+    </div>
+</div>
+{% endblock %}

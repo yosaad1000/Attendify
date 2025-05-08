@@ -799,32 +799,73 @@ def remove_subject(subject_id):
     
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#####################################################################################################################
+
 @app.route('/admin/enroll_student', methods=['GET', 'POST'])
 def admin_enroll_student():
+    """Handle student enrollment page and form submission"""
     if request.method == 'POST':
-        student_id = request.form['student_id']
-        subject_id = request.form['subject_id']
+        student_id = request.form.get('student_id')
+        subject_id = request.form.get('subject_id')
         
-        # We no longer need enrollment_id or StudentSubject object
-        # Just directly enroll the student in the subject
-        success = storage_service.enroll_student_in_subject(student_id, subject_id)
+        if not student_id or not subject_id:
+            flash('Student and subject are required', 'danger')
+            return redirect(url_for('admin_enroll_student'))
+        
+        # Enroll the student in the selected subject
+        success = storage_service.enroll_student_in_courses(student_id, [subject_id])
         
         if not success:
-            flash('Failed to enroll student in subject', 'error')
+            flash('Failed to enroll student in subject', 'danger')
         else:
-            flash('Student enrolled successfully', 'success')
+            # Get student and subject details for the confirmation message
+            student = storage_service.get_student(student_id)
+            subject_details = None
+            
+            # Find the subject details from all subjects
+            subjects = storage_service.get_all_subjects()
+            for subject in subjects:
+                if subject.subject_id == subject_id:
+                    subject_details = subject
+                    break
+            
+            if student and subject_details:
+                flash(f'Successfully enrolled {student.name} in {subject_details.name}', 'success')
+            else:
+                flash('Student enrolled successfully', 'success')
         
         return redirect(url_for('admin_enroll_student'))
     
+    # For GET requests, prepare data for the template
     students = storage_service.get_all_students()
     subjects = storage_service.get_all_subjects()
+    departments = storage_service.get_all_departments()
     
     # Get all subjects with their enrolled students
     subjects_with_enrollments = []
     for subject in subjects:
         # Get the list of student names for display
         enrolled_student_names = []
-        for student_id in subject.enrolled_students:
+        for student_id in subject.enrolled_students or []:
             student = storage_service.get_student(student_id)
             if student:
                 enrolled_student_names.append(student.name)
@@ -835,18 +876,130 @@ def admin_enroll_student():
         })
     
     return render_template('admin/enroll_student.html',
+                           students=students,
+                           subjects=subjects,
+                           departments=departments,
+                           enrollments=subjects_with_enrollments)
+
+@app.route('/api/subjects', methods=['GET'])
+def get_subjects():
+    """API endpoint to get subjects by department and semester"""
+    department_id = request.args.get('department_id')
+    semester = request.args.get('semester')
+    
+    if not department_id or not semester:
+        return jsonify({'error': 'Department ID and semester are required'}), 400
+    
+    try:
+        semester = int(semester)
+        subjects = storage_service.get_courses_by_department_semester(department_id, semester)
+        
+        # Convert subjects to a format suitable for JSON response
+        subjects_data = []
+        for subject in subjects:
+            subjects_data.append({
+                'subject_id': subject.subject_id,
+                'name': subject.name,
+                'department_id': subject.department_id,
+                'semester': subject.semester
+            })
+        
+        return jsonify({'subjects': subjects_data})
+    except Exception as e:
+        app.logger.error(f"Error fetching subjects: {e}")
+        return jsonify({'error': 'Failed to fetch subjects'}), 500
+
+
+@app.route('/admin/bulk_enroll_student', methods=['GET', 'POST'])
+def admin_bulk_enroll_student():
+    """Route to handle bulk enrollment of students in semester courses"""
+    if request.method == 'POST':
+        student_id = request.form['student_id']
+        department_id = request.form['department_id']
+        semester = int(request.form['semester'])
+        
+        # First clear existing enrollments if checkbox is checked
+        if request.form.get('clear_existing', False):
+            storage_service.clear_student_enrollments(student_id)
+        
+        # Get all courses for this department and semester
+        courses = storage_service.get_courses_by_department_semester(department_id, semester)
+        course_ids = [course.subject_id for course in courses]
+        
+        # Enroll student in all courses
+        success = storage_service.enroll_student_in_courses(student_id, course_ids)
+        
+        # Update student's current semester
+        if success and request.form.get('update_semester', False):
+            storage_service.update_student_semester(student_id, semester)
+            flash(f'Student semester updated to {semester}', 'success')
+        
+        if success:
+            flash(f'Student enrolled in {len(course_ids)} courses for semester {semester}', 'success')
+        else:
+            flash('Failed to enroll student in courses', 'error')
+        
+        return redirect(url_for('admin_bulk_enroll_student'))
+    
+    students = storage_service.get_all_students()
+    departments = storage_service.get_all_departments()
+    
+    return render_template('admin/bulk_enroll_student.html',
                          students=students,
-                         subjects=subjects,
-                         enrollments=subjects_with_enrollments)
+                         departments=departments)
 
 
 
 
 
-
-
-
-
+@app.route('/admin/student_enrollments/<student_id>', methods=['GET', 'POST'])
+def admin_student_enrollments(student_id):
+    """Route to display and manage a student's enrollments"""
+    student = storage_service.get_student(student_id)
+    if not student:
+        flash('Student not found', 'error')
+        return redirect(url_for('admin_dashboard'))
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'drop_course':
+            # Drop a single course
+            course_id = request.form.get('course_id')
+            
+            # Remove course from student's enrolled courses
+            if course_id in student.course_enrolled_ids:
+                student.course_enrolled_ids.remove(course_id)
+                storage_service.update_student(student)
+            
+            # Remove student from course's enrolled students
+            course_ref = storage_service.db.collection('subjects').document(course_id)
+            course_doc = course_ref.get()
+            if course_doc.exists:
+                course_data = course_doc.to_dict()
+                enrolled_students = course_data.get('enrolled_students', [])
+                if student_id in enrolled_students:
+                    enrolled_students.remove(student_id)
+                    course_ref.update({'enrolled_students': enrolled_students})
+            
+            flash(f'Student dropped from course', 'success')
+            
+        elif action == 'clear_all':
+            # Clear all enrollments
+            success = storage_service.clear_student_enrollments(student_id)
+            if success:
+                flash('All enrollments cleared', 'success')
+            else:
+                flash('Failed to clear enrollments', 'error')
+        
+        return redirect(url_for('admin_student_enrollments', student_id=student_id))
+    
+    # Get all subjects the student is enrolled in
+    enrolled_subjects = storage_service.get_student_subjects(student_id)
+    
+    return render_template('admin/student_enrollments.html',
+                          student=student,
+                          enrolled_subjects=enrolled_subjects)
 
 
 
