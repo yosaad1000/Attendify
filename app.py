@@ -805,40 +805,40 @@ def admin_enroll_student():
     if request.method == 'POST':
         student_id = request.form['student_id']
         subject_id = request.form['subject_id']
-        academic_year = request.form['academic_year']
-        semester = request.form['semester']
-        attempt = int(request.form.get('attempt', 1))
         
-        # Create a unique ID for this enrollment
-        enrollment_id = f"enr_{uuid.uuid4().hex}"
+        # We no longer need enrollment_id or StudentSubject object
+        # Just directly enroll the student in the subject
+        success = storage_service.enroll_student_in_subject(student_id, subject_id)
         
-        student_subject = StudentSubject(
-            id=enrollment_id,
-            student_id=student_id,
-            subject_id=subject_id,
-            academic_year=academic_year,
-            semester=semester,
-            attempt=attempt
-        )
-        storage_service.enroll_student_in_subject(student_subject)
+        if not success:
+            flash('Failed to enroll student in subject', 'error')
+        else:
+            flash('Student enrolled successfully', 'success')
         
         return redirect(url_for('admin_enroll_student'))
     
     students = storage_service.get_all_students()
     subjects = storage_service.get_all_subjects()
-    enrollments = [StudentSubject.from_dict(doc.to_dict()) 
-                  for doc in storage_service.db.collection('student_subjects').stream()]
     
-    # Get student and subject names for display
-    student_dict = {s.student_id: s.name for s in students}
-    subject_dict = {s.subject_id: s.name for s in subjects}
+    # Get all subjects with their enrolled students
+    subjects_with_enrollments = []
+    for subject in subjects:
+        # Get the list of student names for display
+        enrolled_student_names = []
+        for student_id in subject.enrolled_students:
+            student = storage_service.get_student(student_id)
+            if student:
+                enrolled_student_names.append(student.name)
+        
+        subjects_with_enrollments.append({
+            'subject': subject,
+            'enrolled_students': enrolled_student_names
+        })
     
     return render_template('admin/enroll_student.html',
                          students=students,
                          subjects=subjects,
-                         enrollments=enrollments,
-                         student_dict=student_dict,
-                         subject_dict=subject_dict)
+                         enrollments=subjects_with_enrollments)
 
 
 

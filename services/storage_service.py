@@ -231,75 +231,98 @@ class StorageService:
         return [Subject.from_dict(doc.to_dict()) for doc in query.stream()]
 
     def enroll_student_in_courses(self, student_id, course_ids):
-        """
-        Enroll a student in multiple courses at once
-
-        Args:
-            student_id: Student ID
-            course_ids: List of course IDs
-
-        Returns:
-            True if successful, False otherwise
-        """
-        try:
-            # Get the student
-            student = self.get_student(student_id)
-            if not student:
-                return False
-
-            # Add new courses to the student's enrolled courses
-            for course_id in course_ids:
-                if course_id not in student.course_enrolled_ids:
-                    student.course_enrolled_ids.append(course_id)
-
-                # Create student_subject entry
-                from models.student_subject import StudentSubject
-                student_subject = StudentSubject(
-                    id=f"{student_id}_{course_id}",
-                    student_id=student_id,
-                    subject_id=course_id,
-                    enrollment_date=datetime.now()
-                )
-                self.enroll_student_in_subject(student_subject)
-
-            # Update the student record
-            self.update_student(student)
-            return True
-        except Exception as e:
-            logger.error(f"Error enrolling student in courses: {e}")
-            return False
-        
-
+     """
+     Enroll a student in multiple courses at once
+ 
+     Args:
+         student_id: Student ID
+         course_ids: List of course IDs
+ 
+     Returns:
+         True if successful, False otherwise
+     """
+     try:
+         # Get the student to verify they exist
+         student = self.get_student(student_id)
+         if not student:
+             logger.error(f"Student {student_id} not found")
+             return False
+         
+         # Get student's currently enrolled courses
+         student_courses = student.course_enrolled_ids or []
+         courses_added = []
+         
+         # Update each course's enrolled_students list
+         for course_id in course_ids:
+             course_ref = self.db.collection('subjects').document(course_id)
+             course_doc = course_ref.get()
+             
+             if not course_doc.exists:
+                 logger.error(f"Course {course_id} not found")
+                 continue
+                 
+             # Get current course data
+             course_data = course_doc.to_dict()
+             enrolled_students = course_data.get('enrolled_students', [])
+             
+             # Add student if not already enrolled
+             if student_id not in enrolled_students:
+                 enrolled_students.append(student_id)
+                 course_ref.update({'enrolled_students': enrolled_students})
+                 courses_added.append(course_id)
+         
+         # Update student's enrolled courses
+         for course_id in courses_added:
+             if course_id not in student_courses:
+                 student_courses.append(course_id)
+         
+         # Update student document if any courses were added
+         if courses_added:
+             student.course_enrolled_ids = student_courses
+             self.update_student(student)
+                 
+         return True
+     except Exception as e:
+         logger.error(f"Error enrolling student in courses: {e}")
+         return False
 
     def clear_student_enrollments(self, student_id):
         """
         Clear all course enrollments for a student
-
+    
         Args:
             student_id: Student ID
-
+    
         Returns:
             True if successful, False otherwise
         """
         try:
-            # Get the student
+            # Get the student record
             student = self.get_student(student_id)
             if not student:
+                logger.error(f"Student {student_id} not found")
                 return False
-
-            # Clear the student's enrolled courses
+            
+            # Clear the student's course enrollments
             student.course_enrolled_ids = []
             self.update_student(student)
-
-            # Delete all student_subject entries for the student
-            query = self.db.collection('student_subjects').where(
-                filter=FieldFilter('student_id', '==', student_id)
-            )
-            for doc in query.stream():
-                doc.reference.delete()
-
+            
+            # Find all subjects that have this student enrolled
+            subjects = self.db.collection('subjects').stream()
+            
+            for subject_doc in subjects:
+                subject_data = subject_doc.to_dict()
+                enrolled_students = subject_data.get('enrolled_students', [])
+                
+                # If student is enrolled in this subject, remove them
+                if student_id in enrolled_students:
+                    enrolled_students.remove(student_id)
+                    self.db.collection('subjects').document(subject_doc.id).update({
+                        'enrolled_students': enrolled_students
+                    })
+                    
             return True
         except Exception as e:
             logger.error(f"Error clearing student enrollments: {e}")
             return False
-
+    
