@@ -16,7 +16,6 @@ from models.student import Student
 from models.department import Department
 from models.faculty import Faculty
 from models.subject import Subject
-from models.student_subject import StudentSubject
 from models.attendance import Attendance
 from models.admin import Admin
 
