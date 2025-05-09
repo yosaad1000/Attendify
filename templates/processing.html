@@ -14,10 +14,19 @@
         margin-bottom: 20px;
     }
 
+    .section-header {
+        width: 100%;
+        text-align: left;
+        margin: 25px 0 15px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #3b3b98;
+        color: #333;
+    }
+
     .faces-container {
         display: flex;
         flex-wrap: wrap;
-        justify-content: center;
+        justify-content: flex-start;
         gap: 15px;
         margin-bottom: 20px;
         width: 100%;
@@ -39,9 +48,20 @@
 
     .face-img {
         width: 100%;
-        height: auto;
+        height: 150px;
+        object-fit: cover;
         border-radius: 5px;
         margin-bottom: 10px;
+    }
+
+    .blank-face {
+        background-color: #f5f5f5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 150px;
+        color: #aaa;
+        font-size: 2rem;
     }
 
     .face-name {
@@ -50,17 +70,30 @@
         margin-bottom: 5px;
     }
 
-    .face-status {
+    .face-id {
         font-size: 0.9rem;
         color: #666;
+        margin-bottom: 5px;
     }
 
-    .known {
+    .face-status {
+        font-size: 0.9rem;
+    }
+
+    .present {
         color: #2ecc71;
     }
 
-    .unknown {
+    .absent {
         color: #e74c3c;
+    }
+
+    .unknown {
+        color: #f39c12;
+    }
+
+    .not-enrolled {
+        color: #95a5a6;
     }
 
     .loading-spinner {
@@ -104,6 +137,33 @@
         background-color: #2d2d7a;
     }
 
+    .attendance-stats {
+        display: flex;
+        justify-content: space-around;
+        width: 80%;
+        margin: 20px auto;
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .stat-item {
+        text-align: center;
+        padding: 0 15px;
+    }
+
+    .stat-number {
+        font-size: 1.8rem;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: #666;
+    }
+
     @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
@@ -118,6 +178,11 @@
     @media (max-width: 768px) {
         .face-card {
             width: 150px;
+        }
+        
+        .attendance-stats {
+            width: 95%;
+            flex-wrap: wrap;
         }
     }
 
@@ -142,14 +207,54 @@
 <div class="processing-container">
     <div class="processing-header">
         <h2>Processing Attendance</h2>
+        <h4>{{ subject_name }} - {{ faculty_name }}</h4>
         <p id="status-message" class="status-message">Identifying faces in image...</p>
     </div>
     
-    <div id="faces-container" class="faces-container">
-        <!-- Face cards will be added here dynamically -->
+    <div id="loading-spinner" class="loading-spinner"></div>
+    
+    <div id="attendance-stats" class="attendance-stats" style="display: none;">
+        <div class="stat-item">
+            <div id="present-count" class="stat-number">0</div>
+            <div class="stat-label">Present</div>
+        </div>
+        <div class="stat-item">
+            <div id="absent-count" class="stat-number">0</div>
+            <div class="stat-label">Absent</div>
+        </div>
+        <div class="stat-item">
+            <div id="unknown-count" class="stat-number">0</div>
+            <div class="stat-label">Unknown</div>
+        </div>
+        <div class="stat-item">
+            <div id="total-count" class="stat-number">0</div>
+            <div class="stat-label">Total Enrolled</div>
+        </div>
     </div>
     
-    <div id="loading-spinner" class="loading-spinner"></div>
+    <!-- Debug panel for development, can be removed in production -->
+    <div id="debug-panel" style="display: none; width: 100%; margin: 20px 0; padding: 10px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 5px;">
+        <h4>Debug Information</h4>
+        <div id="debug-content" style="font-family: monospace; white-space: pre-wrap; font-size: 12px;">
+            Session ID: {{ session_id }}
+            Subject ID: {{ subject_id }}
+        </div>
+    </div>
+    
+    <h3 class="section-header">Present Students</h3>
+    <div id="present-container" class="faces-container">
+        <!-- Present students will be added here -->
+    </div>
+    
+    <h3 class="section-header">Absent Students</h3>
+    <div id="absent-container" class="faces-container">
+        <!-- Absent students will be added here -->
+    </div>
+    
+    <h3 class="section-header">Unknown Faces</h3>
+    <div id="unknown-container" class="faces-container">
+        <!-- Unknown faces will be added here -->
+    </div>
     
     <div id="full-image-container" style="display: none; width: 100%; text-align: center;">
         <h3>Completed Attendance Image</h3>
@@ -164,17 +269,194 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const sessionId = '{{ session_id }}';
-        const facesContainer = document.getElementById('faces-container');
+        const subjectId = '{{ subject_id }}';
+        const presentContainer = document.getElementById('present-container');
+        const absentContainer = document.getElementById('absent-container');
+        const unknownContainer = document.getElementById('unknown-container');
         const loadingSpinner = document.getElementById('loading-spinner');
         const statusMessage = document.getElementById('status-message');
         const fullImageContainer = document.getElementById('full-image-container');
         const fullImage = document.getElementById('full-image');
+        const attendanceStats = document.getElementById('attendance-stats');
+        const presentCount = document.getElementById('present-count');
+        const absentCount = document.getElementById('absent-count');
+        const unknownCount = document.getElementById('unknown-count');
+        const totalCount = document.getElementById('total-count');
         
         // Track which faces we've already displayed
         const displayedFaces = new Set();
+        let enrolledStudents = [];
+        let presentStudentIds = new Set();
+        let enrolledStudentMap = {}; // Map student_id to student object for quicker lookup
+        
+        // Debug logging function
+        function logDebug(message) {
+            console.log(`[DEBUG] ${message}`);
+        }
+        
+        // Function to fetch enrolled students
+        function fetchEnrolledStudents() {
+            logDebug(`Fetching enrolled students for subject: ${subjectId}`);
+            
+            // For now, let's use mock data for testing
+            if (!subjectId || subjectId === 'undefined') {
+                logDebug('Subject ID is undefined, using mock data');
+                // Mock data for testing
+                const mockStudents = [
+                    { student_id: "S001", name: "John Doe", roll_number: "R001" },
+                    { student_id: "S002", name: "Jane Smith", roll_number: "R002" },
+                    { student_id: "S003", name: "Alex Johnson", roll_number: "R003" }
+                ];
+                
+                processEnrolledStudents({ students: mockStudents });
+                return;
+            }
+            
+            fetch(`/api/subject/${subjectId}/enrolled_students`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    processEnrolledStudents(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching enrolled students:', error);
+                    statusMessage.textContent = 'Error fetching enrolled student data. Using available data only.';
+                    // Continue with face processing anyway
+                    pollStatus();
+                });
+        }
+        
+        // Process the enrolled students data
+        function processEnrolledStudents(data) {
+            logDebug(`Received ${data.students?.length || 0} enrolled students`);
+            enrolledStudents = data.students || [];
+            
+            // Create a map for quick lookups
+            enrolledStudents.forEach(student => {
+                enrolledStudentMap[student.student_id] = student;
+            });
+            
+            totalCount.textContent = enrolledStudents.length;
+            
+            // Now that we have the student data, start polling
+            pollStatus();
+        }
+        
+        // Function to check if a student is enrolled
+        function isStudentEnrolled(studentId) {
+            return enrolledStudentMap.hasOwnProperty(studentId);
+        }
+        
+        // Function to create a face card
+        function createFaceCard(face, isAbsent = false) {
+            const faceCard = document.createElement('div');
+            faceCard.className = 'face-card';
+            
+            // Add face image or blank placeholder
+            if (isAbsent) {
+                const blankFace = document.createElement('div');
+                blankFace.className = 'face-img blank-face';
+                blankFace.innerHTML = '<i class="fas fa-user"></i>';
+                faceCard.appendChild(blankFace);
+            } else {
+                const img = document.createElement('img');
+                img.src = `data:image/jpeg;base64,${face.face_img}`;
+                img.className = 'face-img';
+                img.alt = face.name;
+                faceCard.appendChild(img);
+            }
+            
+            // Add name
+            const nameElem = document.createElement('div');
+            nameElem.className = 'face-name';
+            nameElem.textContent = face.name;
+            faceCard.appendChild(nameElem);
+            
+            // Add student ID if available
+            if (face.student_id) {
+                const idElem = document.createElement('div');
+                idElem.className = 'face-id';
+                idElem.textContent = `ID: ${face.student_id}`;
+                faceCard.appendChild(idElem);
+            }
+            
+            // Add status
+            const statusElem = document.createElement('div');
+            
+            if (isAbsent) {
+                statusElem.className = 'face-status absent';
+                statusElem.textContent = 'Absent';
+            } else if (face.name === 'Unknown') {
+                statusElem.className = 'face-status unknown';
+                statusElem.textContent = 'Unknown';
+            } else if (isStudentEnrolled(face.student_id)) {
+                statusElem.className = 'face-status present';
+                statusElem.textContent = 'Present';
+                presentStudentIds.add(face.student_id);
+            } else {
+                statusElem.className = 'face-status not-enrolled';
+                statusElem.textContent = 'Not enrolled in this course';
+            }
+            
+            faceCard.appendChild(statusElem);
+            
+            return faceCard;
+        }
+        
+        // Function to update the attendance statistics
+        function updateStats() {
+            logDebug(`Updating stats: Present=${presentStudentIds.size}, Total=${enrolledStudents.length}`);
+            presentCount.textContent = presentStudentIds.size;
+            absentCount.textContent = enrolledStudents.length - presentStudentIds.size;
+            unknownCount.textContent = unknownContainer.children.length;
+            totalCount.textContent = enrolledStudents.length;
+            attendanceStats.style.display = 'flex';
+        }
+        
+        // Function to display absent students
+        function displayAbsentStudents() {
+            logDebug(`Displaying absent students from ${enrolledStudents.length} total enrolled`);
+            
+            enrolledStudents.forEach(student => {
+                if (!presentStudentIds.has(student.student_id)) {
+                    logDebug(`Student ${student.name} (${student.student_id}) is absent`);
+                    const absentCard = createFaceCard({
+                        name: student.name,
+                        student_id: student.student_id
+                    }, true);
+                    absentContainer.appendChild(absentCard);
+                }
+            });
+            
+            updateStats();
+        }
+        
+        // Function to categorize a face
+        function categorizeAndDisplayFace(face) {
+            logDebug(`Categorizing face: ${face.name}, ID: ${face.student_id}`);
+            
+            const faceCard = createFaceCard(face);
+            
+            if (face.name === 'Unknown') {
+                logDebug('Face is Unknown - adding to unknown container');
+                unknownContainer.appendChild(faceCard);
+            } else if (isStudentEnrolled(face.student_id)) {
+                logDebug(`Face is enrolled student ${face.student_id} - adding to present container`);
+                presentContainer.appendChild(faceCard);
+            } else {
+                logDebug('Face is known but not enrolled - adding to unknown container');
+                unknownContainer.appendChild(faceCard);
+            }
+        }
         
         // Function to poll for updates
         function pollStatus() {
+            logDebug(`Polling status for session ${sessionId}`);
+            
             fetch(`/face_status/${sessionId}`)
                 .then(response => {
                     if (!response.ok) {
@@ -192,47 +474,29 @@
                     
                     // Update faces
                     if (data.processed_faces && data.processed_faces.length > 0) {
+                        logDebug(`Received ${data.processed_faces.length} processed faces`);
+                        
                         data.processed_faces.forEach(face => {
                             // Only add faces we haven't displayed yet
                             if (!displayedFaces.has(face.id)) {
                                 displayedFaces.add(face.id);
-                                
-                                // Create face card
-                                const faceCard = document.createElement('div');
-                                faceCard.className = 'face-card';
-                                
-                                // Add face image
-                                const img = document.createElement('img');
-                                img.src = `data:image/jpeg;base64,${face.face_img}`;
-                                img.className = 'face-img';
-                                img.alt = face.name;
-                                faceCard.appendChild(img);
-                                
-                                // Add name
-                                const nameElem = document.createElement('div');
-                                nameElem.className = `face-name ${face.name === 'Unknown' ? 'unknown' : 'known'}`;
-                                nameElem.textContent = face.name;
-                                faceCard.appendChild(nameElem);
-                                
-                                // Add status
-                                const statusElem = document.createElement('div');
-                                statusElem.className = 'face-status';
-                                statusElem.textContent = face.name === 'Unknown' ? 'Not recognized' : 'Attendance marked';
-                                faceCard.appendChild(statusElem);
-                                
-                                // Add to container
-                                facesContainer.appendChild(faceCard);
+                                categorizeAndDisplayFace(face);
                             }
                         });
                         
                         // Update status message
                         statusMessage.textContent = `Processed ${data.processed_faces.length} faces...`;
+                        updateStats();
                     }
                     
                     // Check if processing is complete
                     if (data.status === 'completed') {
+                        logDebug('Processing completed');
                         loadingSpinner.style.display = 'none';
                         statusMessage.textContent = `Completed processing ${data.total_faces} faces.`;
+                        
+                        // Display absent students
+                        displayAbsentStudents();
                         
                         // Show the full image if available
                         if (data.full_image) {
@@ -240,12 +504,6 @@
                             fullImageContainer.style.display = 'block';
                         }
                         return;
-                    }
-                    
-                    // Add error handling for prolonged processing
-                    if (data.processed_faces && data.processed_faces.length === 0 && !data.error) {
-                        // Update message if nothing is happening for a while
-                        statusMessage.textContent = 'Processing image, please wait...';
                     }
                     
                     // Continue polling if not completed
@@ -258,8 +516,9 @@
                 });
         }
         
-        // Start polling
-        pollStatus();
+        // Start by fetching enrolled students first
+        fetchEnrolledStudents();
+        // pollStatus will be called after we get the enrolled students
     });
 </script>
 {% endblock %}

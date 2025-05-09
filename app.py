@@ -448,11 +448,23 @@ def upload_file():
     
     subject_id = request.form.get('subject_id', 'default_subject')
     faculty_id = request.form.get('faculty_id')
-    
+
     try:
         # Read the file data
         image_data = file.read()
         
+        # Get subject and faculty names from IDs
+        subject_name = "Unknown Subject"
+        faculty_name = "Unknown Faculty"
+        
+        subject = storage_service.db.collection('subjects').document(subject_id).get()
+        if subject.exists:
+            subject_name = subject.to_dict().get('name', 'Unknown Subject')
+            
+        faculty = storage_service.db.collection('faculty').document(faculty_id).get() 
+        if faculty.exists:
+            faculty_name = faculty.to_dict().get('name', 'Unknown Faculty')
+
         # Start processing and get session ID
         session_id = start_processing_image(image_data)
         
@@ -467,10 +479,71 @@ def upload_file():
         # Add debug log
         logger.info(f"Created session {session_id} and started processing")
         
-        return render_template('processing.html', session_id=session_id)
+        return render_template('processing.html', 
+                    session_id=session_id,
+                    subject_id=subject_id,  # Pass subject_id to the template
+                    faculty_name=faculty_name,
+                    subject_name=subject_name)
     except Exception as e:
         logger.error(f"Upload error: {str(e)}")
         return f"Error processing image: {str(e)}", 500
+
+@app.route('/api/subject/<subject_id>/enrolled_students')
+def get_enrolled_students(subject_id):
+    """API endpoint to get students enrolled in a specific subject"""
+    try:
+        logger.info(f"Getting enrolled students for subject: {subject_id}")
+        
+        # Handle empty or 'undefined' subject_id
+        if not subject_id or subject_id == 'undefined':
+            logger.warning(f"Invalid subject_id received: {subject_id}")
+            return jsonify({'error': 'Invalid subject ID'}), 400
+        
+        # Get the subject document from Firestore
+        subject_doc = storage_service.db.collection('subjects').document(subject_id).get()
+        
+        if not subject_doc.exists:
+            logger.warning(f"Subject not found: {subject_id}")
+            return jsonify({
+                'subject_id': subject_id,
+                'subject_name': 'Unknown Subject',
+                'students': []
+            })
+            
+        subject_data = subject_doc.to_dict()
+        enrolled_student_ids = subject_data.get('enrolled_students', [])
+        
+        logger.info(f"Found {len(enrolled_student_ids)} enrolled student IDs for subject {subject_id}")
+        
+        # Get details for each enrolled student
+        students = []
+        for student_id in enrolled_student_ids:
+            student = storage_service.get_student(student_id)
+            if student:
+                students.append({
+                    'student_id': student.student_id,
+                    'name': student.name,
+                    'roll_number': student.roll_number if hasattr(student, 'roll_number') else '',
+                    'email': student.email if hasattr(student, 'email') else ''
+                })
+            else:
+                logger.warning(f"Student {student_id} listed in subject but not found in database")
+        
+        logger.info(f"Returning {len(students)} student details for subject {subject_id}")
+        
+        return jsonify({
+            'subject_id': subject_id,
+            'subject_name': subject_data.get('name'),
+            'students': students
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching enrolled students: {e}")
+        return jsonify({
+            'error': str(e),
+            'subject_id': subject_id,
+            'students': []
+        }), 500
 
 @app.route('/process-captured-image', methods=['POST'])
 def process_captured_image():
