@@ -20,18 +20,24 @@
         display: flex;
         flex-direction: column;
         align-items: center;
+        justify-content: center;
         padding: 20px;
         max-width: 1200px;
         margin: 0 auto;
-        gap: 20px;
+        gap: 30px;
+        width: 100%;
+        box-sizing: border-box;
+        min-height: 90vh;
     }
 
     .illustration {
-        flex: 1;
         display: flex;
         justify-content: center;
         align-items: center;
         text-align: center;
+        width: 100%;
+        max-width: 400px;
+        margin: 0 auto 20px;
     }
 
     .illustration img {
@@ -43,28 +49,44 @@
 
     .header-section {
         text-align: center;
-        margin-bottom: 30px;
+        margin-bottom: 20px;
+        width: 100%;
+    }
+    
+    .header-section h1 {
+        font-size: 2rem;
+        margin: 0;
     }
 
     .form-section {
         width: 100%;
-        max-width: 800px;
+        max-width: 600px;
         background: #fff;
-        padding: 30px;
+        padding: 25px;
         border-radius: 10px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        box-sizing: border-box;
+        margin: 0 auto;
+        text-align: center;
+    }
+    
+    .form-section h2 {
+        font-size: 1.5rem;
+        margin-top: 0;
     }
 
     .selector-container {
         display: flex;
         gap: 20px;
         flex-wrap: wrap;
-        margin-bottom: 20px;
+        margin-bottom: 30px;
+        justify-content: center;
     }
 
     .selector-group {
         flex: 1;
         min-width: 300px;
+        text-align: left;
     }
 
     .selector-group label {
@@ -79,49 +101,12 @@
         border: 1px solid #ccc;
         border-radius: 5px;
         font-size: 1rem;
+        box-sizing: border-box;
     }
 
-    .method-tabs {
-        display: flex;
-        border-bottom: 1px solid #ccc;
-        margin-bottom: 20px;
-    }
-
-    .tab-button {
-        padding: 10px 20px;
-        background: none;
-        border: none;
-        border-bottom: 3px solid transparent;
-        cursor: pointer;
-        font-size: 1rem;
-        font-weight: bold;
-        transition: all 0.3s;
-    }
-
-    .tab-button.active {
-        border-bottom-color: #3b3b98;
-        color: #3b3b98;
-    }
-
-    .tab-content {
-        display: none;
-    }
-
-    .tab-content.active {
-        display: block;
-        animation: fadeIn 0.3s;
-    }
-
-    .camera-container, .upload-container {
-        padding: 20px 0;
-    }
-
-    #camera-view {
+    .upload-content {
         width: 100%;
-        height: 400px;
-        background-color: #eee;
-        margin-bottom: 20px;
-        border-radius: 8px;
+        padding: 20px 0;
     }
 
     .btn {
@@ -134,20 +119,40 @@
         font-weight: bold;
         cursor: pointer;
         transition: background-color 0.3s;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
     }
 
     .btn:hover {
         background-color: #2d2d7a;
     }
 
+    .upload-container {
+        width: 100%;
+    }
+    
+    .file-input-container {
+        background-color: #f5f5f5;
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+        padding: 30px 20px;
+        margin-bottom: 25px;
+        text-align: center;
+        transition: all 0.3s;
+    }
+    
+    .file-input-container:hover {
+        border-color: #3b3b98;
+        background-color: #f0f0f7;
+    }
+    
     .upload-container input[type="file"] {
         display: block;
         width: 100%;
-        padding: 12px;
-        margin-bottom: 20px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
         font-size: 1rem;
+        box-sizing: border-box;
+        cursor: pointer;
     }
 
     /* Loading spinner */
@@ -174,6 +179,14 @@
 
     /* Responsive Design */
     @media (max-width: 768px) {
+        .content {
+            padding: 15px;
+        }
+        
+        .form-section {
+            padding: 15px;
+        }
+        
         .selector-container {
             flex-direction: column;
             gap: 15px;
@@ -181,6 +194,51 @@
         
         .selector-group {
             min-width: 100%;
+        }
+        
+        .header-section h1 {
+            font-size: 1.7rem;
+        }
+        
+        .form-section h2 {
+            font-size: 1.3rem;
+        }
+    }
+    
+    /* Small mobile phones */
+    @media (max-width: 480px) {
+        .content {
+            padding: 10px;
+        }
+        
+        .form-section {
+            padding: 12px;
+        }
+        
+        .header-section h1 {
+            font-size: 1.5rem;
+        }
+        
+        .tab-button {
+            padding: 8px 15px;
+            font-size: 0.9rem;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+        }
+        
+        #camera-view {
+            height: 250px;
+        }
+        
+        .selector-group label {
+            font-size: 0.9rem;
+        }
+        
+        .selector-group select {
+            padding: 10px;
+            font-size: 0.9rem;
         }
     }
 </style>
@@ -193,7 +251,6 @@
     </div>
     <div class="illustration">
         <img src='../static/images/2202_w037_n003_224b_p1_224.jpg' alt="Illustration">
-        
     </div>
 
     <div class="form-section">
@@ -217,28 +274,14 @@
             </div>
         </div>
 
-        <h3>Select a method to mark attendance:</h3>
-        <div class="method-tabs">
-            <button class="tab-button active" data-target="camera-tab">Use Camera</button>
-            <button class="tab-button" data-target="upload-tab">Upload Image</button>
-        </div>
-
-        <div class="tab-content active" id="camera-tab">
-            <div class="camera-container">
-                <div id="camera-view"></div>
-                <button id="capture-btn" class="btn" disabled>Capture Photo</button>
-                <form id="capture-form" action="{{ url_for('process_captured_image') }}" method="POST" style="display:none;">
-                    <input type="hidden" name="captured_image" id="captured-image-data">
-                    <input type="hidden" name="subject_id" id="camera-subject-id">
-                    <input type="hidden" name="faculty_id" id="camera-faculty-id">
-                </form>
-            </div>
-        </div>
-
-        <div class="tab-content" id="upload-tab">
+        <h3>Upload Photo for Attendance</h3>
+        
+        <div class="upload-content">
             <div class="upload-container">
                 <form action="{{ url_for('upload_file') }}" method="POST" enctype="multipart/form-data" id="upload-form">
-                    <input type="file" id="file" name="file" accept=".jpg, .jpeg, .png" required>
+                    <div class="file-input-container">
+                        <input type="file" id="file" name="file" accept=".jpg, .jpeg, .png" required>
+                    </div>
                     <input type="hidden" name="subject_id" id="upload-subject-id">
                     <input type="hidden" name="faculty_id" id="upload-faculty-id">
                     <button type="submit" class="btn" id="upload-btn" disabled>Upload Image</button>
@@ -249,31 +292,12 @@
 </div>
 
 <script>
-    // Tab switching functionality
+    // JavaScript to handle form interactions and API calls
     document.addEventListener('DOMContentLoaded', function() {
-        const tabButtons = document.querySelectorAll('.tab-button');
-        const tabContents = document.querySelectorAll('.tab-content');
         const facultySelect = document.getElementById('faculty');
         const subjectSelect = document.getElementById('subject');
-        const captureBtn = document.getElementById('capture-btn');
         const uploadBtn = document.getElementById('upload-btn');
         const subjectLoading = document.getElementById('subject-loading');
-        
-        // Tab switching
-        tabButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                // Remove active class from all buttons and contents
-                tabButtons.forEach(btn => btn.classList.remove('active'));
-                tabContents.forEach(content => content.classList.remove('active'));
-                
-                // Add active class to clicked button
-                button.classList.add('active');
-                
-                // Show corresponding content
-                const targetId = button.getAttribute('data-target');
-                document.getElementById(targetId).classList.add('active');
-            });
-        });
         
         // Faculty selection change event
         facultySelect.addEventListener('change', function() {
@@ -282,7 +306,6 @@
             // Reset subject dropdown
             subjectSelect.innerHTML = '<option value="">-- Loading Subjects --</option>';
             subjectSelect.disabled = true;
-            captureBtn.disabled = true;
             uploadBtn.disabled = true;
             
             if (facultyId) {
@@ -330,7 +353,6 @@
             
             // Enable/disable buttons based on subject selection
             const hasSubject = subjectId !== '';
-            captureBtn.disabled = !hasSubject;
             uploadBtn.disabled = !hasSubject;
             
             // Update hidden form fields
@@ -344,42 +366,47 @@
             
             document.getElementById('upload-subject-id').value = subjectId;
             document.getElementById('upload-faculty-id').value = facultyId;
-            document.getElementById('camera-subject-id').value = subjectId;
-            document.getElementById('camera-faculty-id').value = facultyId;
         }
         
         // Form validation before submission
-        const forms = ['upload-form', 'capture-form'];
-        forms.forEach(formId => {
-            const form = document.getElementById(formId);
-            if (form) {
-                form.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    
-                    updateFormFields(); // Sync values to hidden fields
-                    
-                    const subjectId = subjectSelect.value;
-                    const facultyId = facultySelect.value;
+        const uploadForm = document.getElementById('upload-form');
+        if (uploadForm) {
+            uploadForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                updateFormFields(); // Sync values to hidden fields
+                
+                const subjectId = subjectSelect.value;
+                const facultyId = facultySelect.value;
+    
+                if (!subjectId || !facultyId) {
+                    alert('Please select both Faculty and Subject before proceeding.');
+                } else {
+                    console.log("Form is valid, submitting...");
+                    this.submit();
+                }
+            });
+        }
         
-                    if (!subjectId || !facultyId) {
-                        alert('Please select both Faculty and Subject before proceeding.');
-                    } else {
-                        console.log("Form is valid, submitting...");
-                        form.submit();
-                    }
-                });
-            }
-        });
+        // Mobile detection for responsive adjustments
+        function isMobileDevice() {
+            return (window.innerWidth <= 768) || 
+                  (navigator.maxTouchPoints > 0) ||
+                  (navigator.msMaxTouchPoints > 0);
+        }
         
-        // Capture button functionality
-        if (captureBtn) {
-            captureBtn.addEventListener('click', function() {
-                // In a real implementation, this would capture the camera image
-                // For now, we'll just simulate a capture
-                if (confirm('Capture image and process attendance?')) {
-                    // In real implementation, would set the captured-image-data field with base64 data
-                    // document.getElementById('captured-image-data').value = 'base64data...';
-                    document.getElementById('capture-form').submit();
+        // Add visual feedback for file input
+        const fileInput = document.getElementById('file');
+        const fileContainer = document.querySelector('.file-input-container');
+        
+        if (fileInput && fileContainer) {
+            fileInput.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    fileContainer.style.borderColor = '#3b3b98';
+                    fileContainer.style.backgroundColor = '#f0f0f7';
+                } else {
+                    fileContainer.style.borderColor = '#ccc';
+                    fileContainer.style.backgroundColor = '#f5f5f5';
                 }
             });
         }

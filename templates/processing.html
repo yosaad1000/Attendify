@@ -8,10 +8,14 @@
         align-items: center;
         padding: 20px;
         text-align: center;
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
     }
 
     .processing-header {
         margin-bottom: 20px;
+        width: 100%;
     }
 
     .section-header {
@@ -26,7 +30,7 @@
     .faces-container {
         display: flex;
         flex-wrap: wrap;
-        justify-content: flex-start;
+        justify-content: center;
         gap: 15px;
         margin-bottom: 20px;
         width: 100%;
@@ -107,7 +111,8 @@
     }
 
     .full-image {
-        max-width: 90%;
+        max-width: 100%;
+        height: auto;
         margin: 20px auto;
         border-radius: 8px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -120,6 +125,10 @@
 
     .control-buttons {
         margin-top: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
     }
 
     .btn {
@@ -130,7 +139,8 @@
         border-radius: 5px;
         font-size: 1rem;
         transition: background-color 0.3s;
-        margin: 0 10px;
+        display: inline-block;
+        text-align: center;
     }
 
     .btn:hover {
@@ -140,17 +150,20 @@
     .attendance-stats {
         display: flex;
         justify-content: space-around;
-        width: 80%;
+        width: 100%;
+        max-width: 600px;
         margin: 20px auto;
         background-color: #f8f9fa;
         padding: 15px;
         border-radius: 8px;
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        flex-wrap: wrap;
     }
 
     .stat-item {
         text-align: center;
-        padding: 0 15px;
+        padding: 10px 15px;
+        min-width: 80px;
     }
 
     .stat-number {
@@ -175,29 +188,84 @@
     }
 
     /* Responsive styles */
-    @media (max-width: 768px) {
-        .face-card {
-            width: 150px;
-        }
-        
-        .attendance-stats {
-            width: 95%;
-            flex-wrap: wrap;
+    @media (max-width: 992px) {
+        .faces-container {
+            justify-content: center;
         }
     }
 
-    @media (max-width: 480px) {
+    @media (max-width: 768px) {
+        .face-card {
+            width: 180px;
+        }
+        
+        .attendance-stats {
+            padding: 10px;
+        }
+        
+        .stat-item {
+            padding: 8px 10px;
+        }
+        
+        .stat-number {
+            font-size: 1.5rem;
+        }
+        
+        .processing-container {
+            padding: 15px 10px;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .face-card {
+            width: 150px;
+            padding: 12px;
+        }
+        
+        .face-img {
+            height: 120px;
+        }
+        
+        .face-name {
+            font-size: 0.95rem;
+        }
+        
+        .face-id, .face-status {
+            font-size: 0.85rem;
+        }
+        
+        .stat-item {
+            flex: 1 0 40%;
+            margin-bottom: 10px;
+        }
+        
+        .btn {
+            width: 100%;
+            margin: 5px 0;
+        }
+        
+        .control-buttons {
+            width: 100%;
+            flex-direction: column;
+        }
+    }
+
+    @media (max-width: 400px) {
         .face-card {
             width: 130px;
             padding: 10px;
         }
         
-        .face-name {
-            font-size: 0.9rem;
+        .face-img {
+            height: 100px;
         }
         
-        .face-status {
-            font-size: 0.8rem;
+        .section-header {
+            font-size: 1.2rem;
+        }
+        
+        .status-message {
+            font-size: 0.95rem;
         }
     }
 </style>
