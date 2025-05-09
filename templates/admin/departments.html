@@ -2,9 +2,172 @@
 
 {% block title %}Manage Departments{% endblock %}
 
+{% block extra_styles %}
+<style>
+    .container {
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        margin-bottom: 24px;
+        overflow: hidden;
+    }
+
+    .card-header {
+        background-color: #3b3b98;
+        color: white;
+        padding: 16px 24px;
+        border-bottom: none;
+    }
+
+    .card-header h5 {
+        margin: 0;
+        font-weight: 600;
+    }
+
+    .card-body {
+        padding: 24px;
+    }
+
+    .form-group label {
+        font-weight: 500;
+        margin-bottom: 8px;
+        color: #444;
+    }
+
+    .form-control {
+        border-radius: 8px;
+        padding: 10px 16px;
+        border: 1px solid #ddd;
+        transition: border-color 0.3s ease;
+    }
+
+    .form-control:focus {
+        border-color: #3b3b98;
+        box-shadow: 0 0 0 3px rgba(59, 59, 152, 0.1);
+    }
+
+    .btn-primary {
+        background-color: #3b3b98;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: background-color 0.3s ease;
+    }
+
+    .btn-primary:hover {
+        background-color: #2a2a6e;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .table {
+        margin: 0;
+        min-width: 600px;
+    }
+
+    .table thead th {
+        background-color: #f8f9fa;
+        color: #444;
+        font-weight: 600;
+        border-bottom: 2px solid #eee;
+        padding: 16px;
+    }
+
+    .table tbody td {
+        padding: 14px 16px;
+        vertical-align: middle;
+        border-top: 1px solid #eee;
+    }
+
+    .form-inline {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .text-muted {
+        color: #6c757d !important;
+    }
+
+    @media (max-width: 768px) {
+        .container {
+            padding: 16px;
+        }
+
+        .card-header {
+            padding: 14px 20px;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        .form-group label {
+            font-size: 0.9rem;
+        }
+
+        .form-control {
+            padding: 8px 14px;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            padding: 8px 20px;
+            font-size: 0.9rem;
+        }
+
+        .table thead th:nth-child(1),
+        .table tbody td:nth-child(1) {
+            display: none;
+        }
+
+        .form-inline {
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-control-sm {
+            width: 100% !important;
+            margin-right: 0 !important;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .card-header h5 {
+            font-size: 1.1rem;
+        }
+
+        .table tbody td {
+            padding: 12px;
+            font-size: 0.9rem;
+        }
+
+        .table thead th {
+            padding: 14px;
+            font-size: 0.9rem;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-    <h2>Manage Departments</h2>
+<div class="container mt-3">
+    <h2 class="mb-4">Manage Departments</h2>
     
     <!-- Department Form -->
     <div class="card mb-4">
@@ -13,21 +176,23 @@
         </div>
         <div class="card-body">
             <form method="POST" action="{{ url_for('admin_departments') }}">
-                <div class="row">
-                    <div class="col-md-6">
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
                         <div class="form-group">
                             <label for="dept_id">Department ID</label>
                             <input type="text" class="form-control" id="dept_id" name="dept_id" required>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-12 col-md-6">
                         <div class="form-group">
                             <label for="name">Department Name</label>
                             <input type="text" class="form-control" id="name" name="name" required>
                         </div>
                     </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary w-100">Add Department</button>
+                    </div>
                 </div>
-                <button type="submit" class="btn btn-primary mt-3">Add Department</button>
             </form>
         </div>
     </div>
@@ -37,52 +202,56 @@
         <div class="card-header">
             <h5>Existing Departments</h5>
         </div>
-        <div class="card-body">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Department ID</th>
-                        <th>Name</th>
-                        <th>Head of Department</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for dept in departments %}
-                    <tr>
-                        <td>{{ dept.dept_id }}</td>
-                        <td>{{ dept.name }}</td>
-                        <td>
-                            {% if dept.hod %}
-                                {% for f in faculty %}
-                                    {% if f.faculty_id == dept.hod %}
-                                        {{ f.name }}
-                                    {% endif %}
-                                {% endfor %}
-                            {% else %}
-                                <span class="text-muted">Not assigned</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <form method="POST" action="{{ url_for('set_hod') }}" class="form-inline">
-                                <input type="hidden" name="dept_id" value="{{ dept.dept_id }}">
-                                <select class="form-control form-control-sm mr-2" name="hod_id">
-                                    <option value="">Select HOD</option>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Department ID</th>
+                            <th>Name</th>
+                            <th>Head of Department</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dept in departments %}
+                        <tr>
+                            <td>{{ dept.dept_id }}</td>
+                            <td>{{ dept.name }}</td>
+                            <td>
+                                {% if dept.hod %}
                                     {% for f in faculty %}
-                                        {% if f.departments == dept.dept_id %}
-                                        <option value="{{ f.faculty_id }}" {% if dept.hod == f.faculty_id %}selected{% endif %}>
+                                        {% if f.faculty_id == dept.hod %}
                                             {{ f.name }}
-                                        </option>
                                         {% endif %}
                                     {% endfor %}
-                                </select>
-                                <button type="submit" class="btn btn-sm btn-primary">Set HOD</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                                {% else %}
+                                    <span class="text-muted">Not assigned</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <form method="POST" action="{{ url_for('set_hod') }}">
+                                    <div class="form-inline">
+                                        <input type="hidden" name="dept_id" value="{{ dept.dept_id }}">
+                                        <select class="form-control form-control-sm mr-2" name="hod_id">
+                                            <option value="">Select HOD</option>
+                                            {% for f in faculty %}
+                                                {% if f.departments == dept.dept_id %}
+                                                <option value="{{ f.faculty_id }}" {% if dept.hod == f.faculty_id %}selected{% endif %}>
+                                                    {{ f.name }}
+                                                </option>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </select>
+                                        <button type="submit" class="btn btn-sm btn-primary">Set</button>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
