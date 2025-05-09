@@ -31,19 +31,25 @@ Attendance Dashboard
         color: #555;
     }
 
+    .table-container {
+        overflow-x: auto;
+        margin: 20px 0;
+        border-radius: 10px;
+        -webkit-overflow-scrolling: touch;
+    }
+
     table {
         width: 100%;
         border-collapse: collapse;
-        margin-top: 20px;
+        min-width: 600px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         background-color: #fff;
-        border-radius: 10px;
-        overflow: hidden;
     }
 
     th, td {
         text-align: center;
         padding: 15px;
+        vertical-align: middle;
     }
 
     th {
@@ -73,12 +79,10 @@ Attendance Dashboard
         color: #777;
     }
 
-    /* ✅ Responsive Design */
     @media (max-width: 1024px) {
         table {
             font-size: 0.9rem;
         }
-
         th, td {
             padding: 12px;
         }
@@ -89,44 +93,59 @@ Attendance Dashboard
             width: 95%;
             padding: 15px;
         }
-
         h1 {
             font-size: 1.8rem;
         }
-
         p {
             font-size: 1rem;
         }
+    }
 
-        table {
-            font-size: 0.85rem;
+    @media (max-width: 600px) {
+        th:nth-child(1),
+        td:nth-child(1) {
+            display: none;
         }
-
-        th, td {
-            padding: 10px;
+        h1 {
+            font-size: 1.4rem;
+        }
+        p {
+            font-size: 0.9rem;
+        }
+        th {
+            font-size: 0.9rem;
+            padding: 8px 6px;
+        }
+        td {
+            font-size: 0.85rem;
+            padding: 8px 6px;
+        }
+        .footer p {
+            font-size: 0.8rem;
         }
     }
 
-    @media (max-width: 480px) {
-        .container {
-            width: 100%;
-            padding: 10px;
-        }
-
+    @media (max-width: 400px) {
         h1 {
-            font-size: 1.5rem;
+            font-size: 1.3rem;
         }
-
-        p {
-            font-size: 0.95rem;
+        th {
+            font-size: 0.85rem;
+            padding: 6px 4px;
         }
-
-        table {
+        td {
             font-size: 0.8rem;
+            padding: 6px 4px;
         }
-
-        th, td {
-            padding: 8px;
+        .container {
+            padding: 10px 5px;
+        }
+        table {
+            min-width: 300px;
+        }
+        th:nth-child(4),
+        td:nth-child(4) {
+            min-width: 80px;
         }
     }
 </style>
@@ -137,26 +156,28 @@ Attendance Dashboard
     <h1>Attendance Dashboard</h1>
     <p>Total Attendance Days: {{ total_days }}</p>
     
-    <table>
-        <thead>
-            <tr>
-                <th>Student ID</th>
-                <th>Student Name</th>
-                <th>Days Present</th>
-                <th>Attendance Percentage</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for row in attendance_data %}
-            <tr>
-                <td>{{ row.student_id }}</td>
-                <td>{{ row.name }}</td>
-                <td>{{ row.days_present }}</td>
-                <td>{{ row.percentage }}%</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Student ID</th>
+                    <th>Student Name</th>
+                    <th>Days Present</th>
+                    <th>Attendance %</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in attendance_data %}
+                <tr>
+                    <td>{{ row.student_id }}</td>
+                    <td>{{ row.name }}</td>
+                    <td>{{ row.days_present }}</td>
+                    <td>{{ row.percentage }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
     <div class="footer">
         <p>Attendance data is auto-generated and updated in real time.</p>
