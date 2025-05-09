@@ -1024,25 +1024,55 @@ def admin_student_enrollments(student_id):
 
 @app.route('/mark-attendance')
 def mark_attendance():
-    # Get subjects with their document IDs
-    subjects = []
-    subjects_ref = storage_service.db.collection('subjects').stream()
-    for doc in subjects_ref:
-        subject_data = doc.to_dict()
-        subject_data['id'] = doc.id  # 🔑 Add document ID
-        subjects.append(Subject.from_dict(subject_data))
-    
+    """
+    Render the mark attendance page with faculty list
+    """
     # Get faculty with document IDs
     faculty = []
     faculty_ref = storage_service.db.collection('faculty').stream()
     for doc in faculty_ref:
         faculty_data = doc.to_dict()
-        faculty_data['id'] = doc.id  # 🔑 Add document ID
+        faculty_data['faculty_id'] = doc.id  # Ensure we have the document ID
         faculty.append(Faculty.from_dict(faculty_data))
 
-    return render_template('teacher/mark_attendance.html', 
-                         subjects=subjects, 
-                         faculty=faculty)
+    return render_template('teacher/mark_attendance.html', faculty=faculty)
+
+@app.route('/get-faculty-subjects/<faculty_id>')
+def get_faculty_subjects(faculty_id):
+    """
+    API endpoint to get subjects taught by a faculty member
+    """
+    try:
+        # Get faculty document to fetch subjects
+        faculty_doc = storage_service.db.collection('faculty').document(faculty_id).get()
+        
+        if not faculty_doc.exists:
+            return jsonify({'success': False, 'message': 'Faculty not found', 'subjects': []}), 404
+        
+        faculty_data = faculty_doc.to_dict()
+        subject_ids = faculty_data.get('subjects', [])
+        
+        # Get subject details for each subject ID
+        subjects = []
+        for subject_id in subject_ids:
+            subject_doc = storage_service.db.collection('subjects').document(subject_id).get()
+            if subject_doc.exists:
+                subject_data = subject_doc.to_dict()
+                subject_data['subject_id'] = subject_id  # Ensure we have the document ID
+                subjects.append(subject_data)
+        
+        return jsonify({
+            'success': True,
+            'faculty_id': faculty_id,
+            'subjects': subjects
+        })
+    
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f"Error: {str(e)}",
+            'subjects': []
+        }), 500
 #######################################################################################################################################
 
 

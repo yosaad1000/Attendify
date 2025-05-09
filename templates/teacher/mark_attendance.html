@@ -150,6 +150,22 @@
         font-size: 1rem;
     }
 
+    /* Loading spinner */
+    .loading {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(0,0,0,0.1);
+        border-radius: 50%;
+        border-top-color: #3b3b98;
+        animation: spin 1s ease-in-out infinite;
+        margin-left: 10px;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
     /* Animation */
     @keyframes fadeIn {
         from { opacity: 0; }
@@ -181,25 +197,22 @@
     </div>
 
     <div class="form-section">
-        <h2>Select Subject and Faculty</h2>
+        <h2>Select Faculty and Subject</h2>
         <div class="selector-container">
             <div class="selector-group">
-                <label for="subject">Subject</label>
-                <select id="subject" name="subject_id" required>
-                    <option value="s">-- Select Subject --</option>
-                    {% for subject in subjects %}
-                    <option value="{{ subject.subject_id }}">{{ subject.name }} ({{ subject.code }})</option>
+                <label for="faculty">Faculty</label>
+                <select id="faculty" name="faculty_id" required>
+                    <option value="">-- Select Faculty --</option>
+                    {% for f in faculty %}
+                    <option value="{{ f.faculty_id }}">{{ f.name }}</option>
                     {% endfor %}
                 </select>
             </div>
 
             <div class="selector-group">
-                <label for="faculty">Faculty</label>
-                <select id="faculty" name="faculty_id" required>
-                    <option value="f">-- Select Faculty --</option>
-                    {% for f in faculty %}
-                    <option value="{{ f.faculty_id }}">{{ f.name }}</option>
-                    {% endfor %}
+                <label for="subject">Subject <span id="subject-loading" class="loading" style="display: none;"></span></label>
+                <select id="subject" name="subject_id" required disabled>
+                    <option value="">-- Select Faculty First --</option>
                 </select>
             </div>
         </div>
@@ -213,7 +226,7 @@
         <div class="tab-content active" id="camera-tab">
             <div class="camera-container">
                 <div id="camera-view"></div>
-                <button id="capture-btn" class="btn">Capture Photo</button>
+                <button id="capture-btn" class="btn" disabled>Capture Photo</button>
                 <form id="capture-form" action="{{ url_for('process_captured_image') }}" method="POST" style="display:none;">
                     <input type="hidden" name="captured_image" id="captured-image-data">
                     <input type="hidden" name="subject_id" id="camera-subject-id">
@@ -228,10 +241,9 @@
                     <input type="file" id="file" name="file" accept=".jpg, .jpeg, .png" required>
                     <input type="hidden" name="subject_id" id="upload-subject-id">
                     <input type="hidden" name="faculty_id" id="upload-faculty-id">
-                    <button type="submit" class="btn">Upload Image</button>
+                    <button type="submit" class="btn" id="upload-btn" disabled>Upload Image</button>
                 </form>
             </div>
-
         </div>
     </div>
 </div>
@@ -241,7 +253,13 @@
     document.addEventListener('DOMContentLoaded', function() {
         const tabButtons = document.querySelectorAll('.tab-button');
         const tabContents = document.querySelectorAll('.tab-content');
+        const facultySelect = document.getElementById('faculty');
+        const subjectSelect = document.getElementById('subject');
+        const captureBtn = document.getElementById('capture-btn');
+        const uploadBtn = document.getElementById('upload-btn');
+        const subjectLoading = document.getElementById('subject-loading');
         
+        // Tab switching
         tabButtons.forEach(button => {
             button.addEventListener('click', function() {
                 // Remove active class from all buttons and contents
@@ -257,15 +275,69 @@
             });
         });
         
-        // Camera initialization code would go here
-        // For demo purposes we'll leave this commented
-        // initCamera();
+        // Faculty selection change event
+        facultySelect.addEventListener('change', function() {
+            const facultyId = facultySelect.value;
+            
+            // Reset subject dropdown
+            subjectSelect.innerHTML = '<option value="">-- Loading Subjects --</option>';
+            subjectSelect.disabled = true;
+            captureBtn.disabled = true;
+            uploadBtn.disabled = true;
+            
+            if (facultyId) {
+                // Show loading spinner
+                subjectLoading.style.display = 'inline-block';
+                
+                // Fetch subjects taught by the selected faculty
+                fetch(`/get-faculty-subjects/${facultyId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        // Hide loading spinner
+                        subjectLoading.style.display = 'none';
+                        
+                        // Clear subject dropdown and add new options
+                        subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
+                        
+                        // Add subjects to dropdown
+                        data.subjects.forEach(subject => {
+                            const option = document.createElement('option');
+                            option.value = subject.subject_id;
+                            option.textContent = `${subject.name} (${subject.subject_id})`;
+                            subjectSelect.appendChild(option);
+                        });
+                        
+                        // Enable subject dropdown
+                        subjectSelect.disabled = false;
+                    })
+                    .catch(error => {
+                        console.error('Error fetching subjects:', error);
+                        subjectLoading.style.display = 'none';
+                        subjectSelect.innerHTML = '<option value="">-- Error Loading Subjects --</option>';
+                    });
+            } else {
+                // Reset subject dropdown if no faculty is selected
+                subjectSelect.innerHTML = '<option value="">-- Select Faculty First --</option>';
+            }
+            
+            // Update hidden form fields
+            updateFormFields();
+        });
         
-        // Copy subject and faculty selections to hidden form fields
-        const subjectSelect = document.getElementById('subject');
-        const facultySelect = document.getElementById('faculty');
-        const forms = ['upload-form', 'capture-form'];
+        // Subject selection change event
+        subjectSelect.addEventListener('change', function() {
+            const subjectId = subjectSelect.value;
+            
+            // Enable/disable buttons based on subject selection
+            const hasSubject = subjectId !== '';
+            captureBtn.disabled = !hasSubject;
+            uploadBtn.disabled = !hasSubject;
+            
+            // Update hidden form fields
+            updateFormFields();
+        });
         
+        // Update hidden form fields
         function updateFormFields() {
             const subjectId = subjectSelect.value;
             const facultyId = facultySelect.value;
@@ -276,13 +348,8 @@
             document.getElementById('camera-faculty-id').value = facultyId;
         }
         
-        subjectSelect.addEventListener('change', updateFormFields);
-        facultySelect.addEventListener('change', updateFormFields);
-        
         // Form validation before submission
-        // Form validation is currently disabled as it's not working as intended
-        // TODO: Fix form validation logic
-        
+        const forms = ['upload-form', 'capture-form'];
         forms.forEach(formId => {
             const form = document.getElementById(formId);
             if (form) {
@@ -294,12 +361,8 @@
                     const subjectId = subjectSelect.value;
                     const facultyId = facultySelect.value;
         
-                    console.log("Submitting form:", formId);
-                    console.log("Subject ID:", subjectId);
-                    console.log("Faculty ID:", facultyId);
-        
                     if (!subjectId || !facultyId) {
-                        alert('Please select both Subject and Faculty before proceeding.');
+                        alert('Please select both Faculty and Subject before proceeding.');
                     } else {
                         console.log("Form is valid, submitting...");
                         form.submit();
@@ -308,9 +371,7 @@
             }
         });
         
-        
         // Capture button functionality
-        const captureBtn = document.getElementById('capture-btn');
         if (captureBtn) {
             captureBtn.addEventListener('click', function() {
                 // In a real implementation, this would capture the camera image
