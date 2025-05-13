@@ -44,18 +44,12 @@
         width: 200px;
         transition: transform 0.2s;
         animation: fadeIn 0.5s;
+        cursor: pointer;
     }
 
     .face-card:hover {
         transform: translateY(-5px);
-    }
-
-    .face-img {
-        width: 100%;
-        height: 150px;
-        object-fit: cover;
-        border-radius: 5px;
-        margin-bottom: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
 
     .blank-face {
@@ -66,6 +60,14 @@
         height: 150px;
         color: #aaa;
         font-size: 2rem;
+    }
+
+    .face-img {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 5px;
+        margin-bottom: 10px;
     }
 
     .face-name {
@@ -177,6 +179,56 @@
         color: #666;
     }
 
+    /* Modal styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0,0,0,0.4);
+    }
+
+    .modal-content {
+        background-color: #fff;
+        margin: 15% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 80%;
+        max-width: 500px;
+        border-radius: 8px;
+        position: relative;
+    }
+
+    .close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .close:hover {
+        color: #000;
+    }
+
+    .student-option {
+        padding: 10px;
+        margin: 5px 0;
+        background-color: #f9f9f9;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .student-option:hover {
+        background-color: #e9e9e9;
+    }
+
     @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
@@ -187,85 +239,23 @@
         to { opacity: 1; }
     }
 
-    /* Responsive styles */
-    @media (max-width: 992px) {
-        .faces-container {
-            justify-content: center;
-        }
-    }
-
     @media (max-width: 768px) {
         .face-card {
             width: 180px;
         }
         
-        .attendance-stats {
-            padding: 10px;
-        }
-        
-        .stat-item {
-            padding: 8px 10px;
-        }
-        
         .stat-number {
             font-size: 1.5rem;
-        }
-        
-        .processing-container {
-            padding: 15px 10px;
         }
     }
 
     @media (max-width: 576px) {
         .face-card {
             width: 150px;
-            padding: 12px;
         }
         
         .face-img {
             height: 120px;
-        }
-        
-        .face-name {
-            font-size: 0.95rem;
-        }
-        
-        .face-id, .face-status {
-            font-size: 0.85rem;
-        }
-        
-        .stat-item {
-            flex: 1 0 40%;
-            margin-bottom: 10px;
-        }
-        
-        .btn {
-            width: 100%;
-            margin: 5px 0;
-        }
-        
-        .control-buttons {
-            width: 100%;
-            flex-direction: column;
-        }
-    }
-
-    @media (max-width: 400px) {
-        .face-card {
-            width: 130px;
-            padding: 10px;
-        }
-        
-        .face-img {
-            height: 100px;
-        }
-        
-        .section-header {
-            font-size: 1.2rem;
-        }
-        
-        .status-message {
-            font-size: 0.95rem;
         }
     }
 </style>
@@ -299,30 +289,15 @@
             <div class="stat-label">Total Enrolled</div>
         </div>
     </div>
-    
-    <!-- Debug panel for development, can be removed in production -->
-    <div id="debug-panel" style="display: none; width: 100%; margin: 20px 0; padding: 10px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 5px;">
-        <h4>Debug Information</h4>
-        <div id="debug-content" style="font-family: monospace; white-space: pre-wrap; font-size: 12px;">
-            Session ID: {{ session_id }}
-            Subject ID: {{ subject_id }}
-        </div>
-    </div>
-    
+
     <h3 class="section-header">Present Students</h3>
-    <div id="present-container" class="faces-container">
-        <!-- Present students will be added here -->
-    </div>
+    <div id="present-container" class="faces-container"></div>
     
     <h3 class="section-header">Absent Students</h3>
-    <div id="absent-container" class="faces-container">
-        <!-- Absent students will be added here -->
-    </div>
+    <div id="absent-container" class="faces-container"></div>
     
     <h3 class="section-header">Unknown Faces</h3>
-    <div id="unknown-container" class="faces-container">
-        <!-- Unknown faces will be added here -->
-    </div>
+    <div id="unknown-container" class="faces-container"></div>
     
     <div id="full-image-container" style="display: none; width: 100%; text-align: center;">
         <h3>Completed Attendance Image</h3>
@@ -332,261 +307,309 @@
     <div class="control-buttons">
         <a href="{{ url_for('mark_attendance') }}" class="btn">Mark More Attendance</a>
     </div>
+
+    <!-- Student Selection Modal -->
+    <div id="studentModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Select Student</h3>
+            <div id="studentList"></div>
+        </div>
+    </div>
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const sessionId = '{{ session_id }}';
-        const subjectId = '{{ subject_id }}';
-        const presentContainer = document.getElementById('present-container');
-        const absentContainer = document.getElementById('absent-container');
-        const unknownContainer = document.getElementById('unknown-container');
-        const loadingSpinner = document.getElementById('loading-spinner');
-        const statusMessage = document.getElementById('status-message');
-        const fullImageContainer = document.getElementById('full-image-container');
-        const fullImage = document.getElementById('full-image');
-        const attendanceStats = document.getElementById('attendance-stats');
-        const presentCount = document.getElementById('present-count');
-        const absentCount = document.getElementById('absent-count');
-        const unknownCount = document.getElementById('unknown-count');
-        const totalCount = document.getElementById('total-count');
-        
-        // Track which faces we've already displayed
-        const displayedFaces = new Set();
-        let enrolledStudents = [];
-        let presentStudentIds = new Set();
-        let enrolledStudentMap = {}; // Map student_id to student object for quicker lookup
-        
-        // Debug logging function
-        function logDebug(message) {
-            console.log(`[DEBUG] ${message}`);
-        }
-        
-        // Function to fetch enrolled students
-        function fetchEnrolledStudents() {
-            logDebug(`Fetching enrolled students for subject: ${subjectId}`);
+document.addEventListener('DOMContentLoaded', function() {
+    const sessionId = '{{ session_id }}';
+    const subjectId = '{{ subject_id }}';
+    const presentContainer = document.getElementById('present-container');
+    const absentContainer = document.getElementById('absent-container');
+    const unknownContainer = document.getElementById('unknown-container');
+    const loadingSpinner = document.getElementById('loading-spinner');
+    const statusMessage = document.getElementById('status-message');
+    const fullImageContainer = document.getElementById('full-image-container');
+    const fullImage = document.getElementById('full-image');
+    const attendanceStats = document.getElementById('attendance-stats');
+    const presentCount = document.getElementById('present-count');
+    const absentCount = document.getElementById('absent-count');
+    const unknownCount = document.getElementById('unknown-count');
+    const totalCount = document.getElementById('total-count');
+    
+    const displayedFaces = new Set();
+    let enrolledStudents = [];
+    let presentStudentIds = new Set();
+    let enrolledStudentMap = {};
+
+    // Event delegation for face cards
+    document.querySelectorAll('.faces-container').forEach(container => {
+        container.addEventListener('click', function(e) {
+            const card = e.target.closest('.face-card');
+            if (!card) return;
             
-            // For now, let's use mock data for testing
-            if (!subjectId || subjectId === 'undefined') {
-                logDebug('Subject ID is undefined, using mock data');
-                // Mock data for testing
-                const mockStudents = [
-                    { student_id: "S001", name: "John Doe", roll_number: "R001" },
-                    { student_id: "S002", name: "Jane Smith", roll_number: "R002" },
-                    { student_id: "S003", name: "Alex Johnson", roll_number: "R003" }
-                ];
-                
-                processEnrolledStudents({ students: mockStudents });
-                return;
+            const status = card.dataset.status;
+            const studentId = card.dataset.studentId;
+            const faceId = card.dataset.faceId;
+
+            if (status === 'present') {
+                markStudentAbsent(studentId, card);
+            } else if (status === 'absent') {
+                markStudentPresent(studentId, card);
+            } else if (status === 'unknown') {
+                assignFaceToStudent(faceId, card);
             }
-            
-            fetch(`/api/subject/${subjectId}/enrolled_students`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    processEnrolledStudents(data);
-                })
-                .catch(error => {
-                    console.error('Error fetching enrolled students:', error);
-                    statusMessage.textContent = 'Error fetching enrolled student data. Using available data only.';
-                    // Continue with face processing anyway
-                    pollStatus();
-                });
+        });
+    });
+
+    function fetchEnrolledStudents() {
+        if (!subjectId || subjectId === 'undefined') {
+            const mockStudents = [
+                { student_id: "S001", name: "John Doe", roll_number: "R001" },
+                { student_id: "S002", name: "Jane Smith", roll_number: "R002" },
+                { student_id: "S003", name: "Alex Johnson", roll_number: "R003" }
+            ];
+            processEnrolledStudents({ students: mockStudents });
+            return;
         }
         
-        // Process the enrolled students data
-        function processEnrolledStudents(data) {
-            logDebug(`Received ${data.students?.length || 0} enrolled students`);
-            enrolledStudents = data.students || [];
-            
-            // Create a map for quick lookups
-            enrolledStudents.forEach(student => {
-                enrolledStudentMap[student.student_id] = student;
+        fetch(`/api/subject/${subjectId}/enrolled_students`)
+            .then(response => response.json())
+            .then(data => processEnrolledStudents(data))
+            .catch(error => {
+                console.error('Error:', error);
+                pollStatus();
             });
-            
-            totalCount.textContent = enrolledStudents.length;
-            
-            // Now that we have the student data, start polling
-            pollStatus();
-        }
+    }
+
+    function processEnrolledStudents(data) {
+        enrolledStudents = data.students || [];
+        enrolledStudents.forEach(student => {
+            enrolledStudentMap[student.student_id] = student;
+        });
+        totalCount.textContent = enrolledStudents.length;
+        pollStatus();
+    }
+
+    function createFaceCard(face, isAbsent = false) {
+        const faceCard = document.createElement('div');
+        faceCard.className = 'face-card';
         
-        // Function to check if a student is enrolled
-        function isStudentEnrolled(studentId) {
-            return enrolledStudentMap.hasOwnProperty(studentId);
-        }
-        
-        // Function to create a face card
-        function createFaceCard(face, isAbsent = false) {
-            const faceCard = document.createElement('div');
-            faceCard.className = 'face-card';
+        if (isAbsent) {
+            faceCard.dataset.status = 'absent';
+            faceCard.dataset.studentId = face.student_id;
+            const blankFace = document.createElement('div');
+            blankFace.className = 'face-img blank-face';
+            blankFace.innerHTML = '<i class="fas fa-user"></i>';
+            faceCard.appendChild(blankFace);
+        } else {
+            faceCard.dataset.status = face.name === 'Unknown' ? 'unknown' : 'present';
+            if (face.id) faceCard.dataset.faceId = face.id;
+            if (face.student_id) faceCard.dataset.studentId = face.student_id;
             
-            // Add face image or blank placeholder
-            if (isAbsent) {
-                const blankFace = document.createElement('div');
-                blankFace.className = 'face-img blank-face';
-                blankFace.innerHTML = '<i class="fas fa-user"></i>';
-                faceCard.appendChild(blankFace);
-            } else {
-                const img = document.createElement('img');
-                img.src = `data:image/jpeg;base64,${face.face_img}`;
-                img.className = 'face-img';
-                img.alt = face.name;
-                faceCard.appendChild(img);
+            const img = document.createElement('img');
+            img.src = `data:image/jpeg;base64,${face.face_img}`;
+            img.className = 'face-img';
+            img.alt = face.name;
+            faceCard.appendChild(img);
+        }
+
+        const nameElem = document.createElement('div');
+        nameElem.className = 'face-name';
+        nameElem.textContent = face.name;
+        faceCard.appendChild(nameElem);
+
+        if (face.student_id) {
+            const idElem = document.createElement('div');
+            idElem.className = 'face-id';
+            idElem.textContent = `ID: ${face.student_id}`;
+            faceCard.appendChild(idElem);
+        }
+
+        const statusElem = document.createElement('div');
+        if (isAbsent) {
+            statusElem.className = 'face-status absent';
+            statusElem.textContent = 'Absent';
+        } else if (face.name === 'Unknown') {
+            statusElem.className = 'face-status unknown';
+            statusElem.textContent = 'Unknown';
+        } else if (enrolledStudentMap[face.student_id]) {
+            statusElem.className = 'face-status present';
+            statusElem.textContent = 'Present';
+            presentStudentIds.add(face.student_id);
+        } else {
+            statusElem.className = 'face-status not-enrolled';
+            statusElem.textContent = 'Not enrolled';
+        }
+        faceCard.appendChild(statusElem);
+
+        return faceCard;
+    }
+
+    function updateStats() {
+        presentCount.textContent = presentStudentIds.size;
+        absentCount.textContent = enrolledStudents.length - presentStudentIds.size;
+        unknownCount.textContent = unknownContainer.children.length;
+        totalCount.textContent = enrolledStudents.length;
+        attendanceStats.style.display = 'flex';
+    }
+
+    function displayAbsentStudents() {
+        enrolledStudents.forEach(student => {
+            if (!presentStudentIds.has(student.student_id)) {
+                const absentCard = createFaceCard({
+                    name: student.name,
+                    student_id: student.student_id
+                }, true);
+                absentContainer.appendChild(absentCard);
             }
-            
-            // Add name
-            const nameElem = document.createElement('div');
-            nameElem.className = 'face-name';
-            nameElem.textContent = face.name;
-            faceCard.appendChild(nameElem);
-            
-            // Add student ID if available
-            if (face.student_id) {
-                const idElem = document.createElement('div');
-                idElem.className = 'face-id';
-                idElem.textContent = `ID: ${face.student_id}`;
-                faceCard.appendChild(idElem);
-            }
-            
-            // Add status
-            const statusElem = document.createElement('div');
-            
-            if (isAbsent) {
-                statusElem.className = 'face-status absent';
-                statusElem.textContent = 'Absent';
-            } else if (face.name === 'Unknown') {
-                statusElem.className = 'face-status unknown';
-                statusElem.textContent = 'Unknown';
-            } else if (isStudentEnrolled(face.student_id)) {
-                statusElem.className = 'face-status present';
-                statusElem.textContent = 'Present';
-                presentStudentIds.add(face.student_id);
-            } else {
-                statusElem.className = 'face-status not-enrolled';
-                statusElem.textContent = 'Not enrolled in this course';
-            }
-            
-            faceCard.appendChild(statusElem);
-            
-            return faceCard;
-        }
-        
-        // Function to update the attendance statistics
-        function updateStats() {
-            logDebug(`Updating stats: Present=${presentStudentIds.size}, Total=${enrolledStudents.length}`);
-            presentCount.textContent = presentStudentIds.size;
-            absentCount.textContent = enrolledStudents.length - presentStudentIds.size;
-            unknownCount.textContent = unknownContainer.children.length;
-            totalCount.textContent = enrolledStudents.length;
-            attendanceStats.style.display = 'flex';
-        }
-        
-        // Function to display absent students
-        function displayAbsentStudents() {
-            logDebug(`Displaying absent students from ${enrolledStudents.length} total enrolled`);
-            
-            enrolledStudents.forEach(student => {
-                if (!presentStudentIds.has(student.student_id)) {
-                    logDebug(`Student ${student.name} (${student.student_id}) is absent`);
-                    const absentCard = createFaceCard({
-                        name: student.name,
-                        student_id: student.student_id
-                    }, true);
-                    absentContainer.appendChild(absentCard);
+        });
+        updateStats();
+    }
+
+    function pollStatus() {
+        fetch(`/face_status/${sessionId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    statusMessage.textContent = `Error: ${data.error}`;
+                    loadingSpinner.style.display = 'none';
+                    return;
                 }
+
+                if (data.processed_faces) {
+                    data.processed_faces.forEach(face => {
+                        if (!displayedFaces.has(face.id)) {
+                            displayedFaces.add(face.id);
+                            categorizeAndDisplayFace(face);
+                        }
+                    });
+                    statusMessage.textContent = `Processed ${data.processed_faces.length} faces...`;
+                    updateStats();
+                }
+
+                if (data.status === 'completed') {
+                    loadingSpinner.style.display = 'none';
+                    statusMessage.textContent = `Completed processing ${data.total_faces} faces.`;
+                    displayAbsentStudents();
+                    if (data.full_image) {
+                        fullImage.src = `data:image/jpeg;base64,${data.full_image}`;
+                        fullImageContainer.style.display = 'block';
+                    }
+                    return;
+                }
+                setTimeout(pollStatus, 500);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                statusMessage.textContent = 'Connection error';
+                loadingSpinner.style.display = 'none';
             });
-            
-            updateStats();
+    }
+
+    function categorizeAndDisplayFace(face) {
+        const faceCard = createFaceCard(face);
+        if (face.name === 'Unknown') {
+            unknownContainer.appendChild(faceCard);
+        } else if (enrolledStudentMap[face.student_id]) {
+            presentContainer.appendChild(faceCard);
+        } else {
+            unknownContainer.appendChild(faceCard);
         }
-        
-        // Function to categorize a face
-        function categorizeAndDisplayFace(face) {
-            logDebug(`Categorizing face: ${face.name}, ID: ${face.student_id}`);
-            
-            const faceCard = createFaceCard(face);
-            
-            if (face.name === 'Unknown') {
-                logDebug('Face is Unknown - adding to unknown container');
-                unknownContainer.appendChild(faceCard);
-            } else if (isStudentEnrolled(face.student_id)) {
-                logDebug(`Face is enrolled student ${face.student_id} - adding to present container`);
-                presentContainer.appendChild(faceCard);
-            } else {
-                logDebug('Face is known but not enrolled - adding to unknown container');
-                unknownContainer.appendChild(faceCard);
-            }
-        }
-        
-        // Function to poll for updates
-        function pollStatus() {
-            logDebug(`Polling status for session ${sessionId}`);
-            
-            fetch(`/face_status/${sessionId}`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
+    }
+
+    function markStudentPresent(studentId, card) {
+        const student = enrolledStudentMap[studentId];
+        if (!student) return;
+
+        card.remove();
+        const presentCard = createFaceCard({
+            student_id: studentId,
+            name: student.name,
+            face_img: student.face_img
+        });
+        presentContainer.appendChild(presentCard);
+        presentStudentIds.add(studentId);
+        updateStats();
+
+        fetch(`/api/attendance/mark_present`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sessionId, student_id: studentId })
+        }).catch(console.error);
+    }
+
+    function markStudentAbsent(studentId, card) {
+        card.remove();
+        const student = enrolledStudentMap[studentId];
+        const absentCard = createFaceCard({
+            student_id: studentId,
+            name: student.name
+        }, true);
+        absentContainer.appendChild(absentCard);
+        presentStudentIds.delete(studentId);
+        updateStats();
+
+        fetch(`/api/attendance/mark_absent`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sessionId, student_id: studentId })
+        }).catch(console.error);
+    }
+
+    function assignFaceToStudent(faceId, unknownCard) {
+        const absentStudents = enrolledStudents.filter(s => !presentStudentIds.has(s.student_id));
+        const modal = document.getElementById('studentModal');
+        const studentList = document.getElementById('studentList');
+        studentList.innerHTML = '';
+
+        absentStudents.forEach(student => {
+            const div = document.createElement('div');
+            div.className = 'student-option';
+            div.textContent = `${student.name} (${student.student_id})`;
+            div.dataset.studentId = student.student_id;
+            studentList.appendChild(div);
+        });
+
+        studentList.querySelectorAll('.student-option').forEach(option => {
+            option.addEventListener('click', function() {
+                const selectedStudentId = this.dataset.studentId;
+                modal.style.display = 'none';
+                
+                fetch(`/api/attendance/assign_face`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        face_id: faceId,
+                        student_id: selectedStudentId
+                    })
                 })
+                .then(response => response.json())
                 .then(data => {
-                    // Update status message
-                    if (data.error) {
-                        statusMessage.textContent = `Error: ${data.error}`;
-                        loadingSpinner.style.display = 'none';
-                        return;
-                    }
-                    
-                    // Update faces
-                    if (data.processed_faces && data.processed_faces.length > 0) {
-                        logDebug(`Received ${data.processed_faces.length} processed faces`);
-                        
-                        data.processed_faces.forEach(face => {
-                            // Only add faces we haven't displayed yet
-                            if (!displayedFaces.has(face.id)) {
-                                displayedFaces.add(face.id);
-                                categorizeAndDisplayFace(face);
-                            }
+                    if (data.success) {
+                        unknownCard.remove();
+                        const student = enrolledStudentMap[selectedStudentId];
+                        const presentCard = createFaceCard({
+                            student_id: selectedStudentId,
+                            name: student.name,
+                            face_img: data.face_img
                         });
-                        
-                        // Update status message
-                        statusMessage.textContent = `Processed ${data.processed_faces.length} faces...`;
+                        presentContainer.appendChild(presentCard);
+                        presentStudentIds.add(selectedStudentId);
                         updateStats();
                     }
-                    
-                    // Check if processing is complete
-                    if (data.status === 'completed') {
-                        logDebug('Processing completed');
-                        loadingSpinner.style.display = 'none';
-                        statusMessage.textContent = `Completed processing ${data.total_faces} faces.`;
-                        
-                        // Display absent students
-                        displayAbsentStudents();
-                        
-                        // Show the full image if available
-                        if (data.full_image) {
-                            fullImage.src = `data:image/jpeg;base64,${data.full_image}`;
-                            fullImageContainer.style.display = 'block';
-                        }
-                        return;
-                    }
-                    
-                    // Continue polling if not completed
-                    setTimeout(pollStatus, 500);
                 })
-                .catch(error => {
-                    console.error('Error fetching status:', error);
-                    statusMessage.textContent = 'Error connecting to server. Please try again.';
-                    loadingSpinner.style.display = 'none';
-                });
-        }
-        
-        // Start by fetching enrolled students first
-        fetchEnrolledStudents();
-        // pollStatus will be called after we get the enrolled students
-    });
+                .catch(console.error);
+            });
+        });
+
+        modal.style.display = 'block';
+        modal.querySelector('.close').onclick = () => modal.style.display = 'none';
+        window.onclick = (event) => {
+            if (event.target === modal) modal.style.display = 'none';
+        };
+    }
+
+    fetchEnrolledStudents();
+});
 </script>
 {% endblock %}
