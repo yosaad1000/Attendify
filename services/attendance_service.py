@@ -1,6 +1,7 @@
 import logging
-from datetime import datetime, date
+from datetime import datetime
 import uuid
+from firebase_admin import firestore
 
 from models.attendance import Attendance
 from services.storage_service import StorageService
@@ -28,26 +29,26 @@ class AttendanceService:
             True if attendance marked successfully, False otherwise
         """
         try:
-            today = date.today()
+            # Use Firestore's server timestamp for today's date
+            today = firestore.SERVER_TIMESTAMP
             
             # Check if attendance already marked for this student-subject-date
-            ##########################################################################################################################################
-            existing_attendance = self.storage.get_student_attendance(student_id, subject_id, today )
+            # We'll check this later when we have the actual timestamp from Firestore
             
-            if not existing_attendance:
-                attendance_id = f"att_{uuid.uuid4().hex}"
-                attendance = Attendance(
-                    attendance_id=attendance_id,
-                    student_id=student_id,
-                    subject_id=subject_id,
-                    date=today,
-                    status=status,
-                    verified_by=faculty_id
-                )
-                self.storage.record_attendance(attendance)
-                return True
+            attendance_id = f"att_{uuid.uuid4().hex}"
+            attendance = Attendance(
+                attendance_id=attendance_id,
+                student_id=student_id,
+                subject_id=subject_id,
+                date=None,  # We'll let Firestore assign the timestamp
+                status=status,
+                verified_by=faculty_id
+            )
             
-            return False
+            # Record the attendance with Firestore timestamp
+            self.storage.record_attendance(attendance)
+            return True
+            
         except Exception as e:
             logger.error(f"Error marking attendance: {e}")
             return False

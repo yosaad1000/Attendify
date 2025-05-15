@@ -109,6 +109,7 @@ def start_processing_image(image_data):
         logger.error(f"Error starting image processing: {e}")
         raise
 
+
 def process_faces_background(session_id):
     """Process faces in background and update session progressively"""
     session_data = session_manager.get_session(session_id)
@@ -143,6 +144,9 @@ def process_faces_background(session_id):
         all_names = []
         all_student_ids = []
         
+        # Initialize attendance service
+        attendance_service = AttendanceService()
+        
         for i, face_location in enumerate(face_locations):
             try:
                 # Get face encoding using FaceService
@@ -151,6 +155,26 @@ def process_faces_background(session_id):
                 # Find matching face using StorageService
                 student_id, name, score = storage_service.find_matching_face(face_encoding)
                 
+                # If a valid student was identified (student_id is not None)
+                if student_id:
+                    # Mark attendance for this student
+                    if subject_id:
+                        # Mark the student as present in this subject
+                        attendance_result = attendance_service.mark_attendance(
+                            student_id=student_id,
+                            subject_id=subject_id,
+                            faculty_id=faculty_id,
+                            status="present"
+                        )
+                        
+                        # Log the attendance result
+                        if attendance_result:
+                            logger.info(f"Marked attendance for student {student_id} ({name}) in subject {subject_id}")
+                        else:
+                            logger.info(f"Attendance already marked or error for student {student_id} in subject {subject_id}")
+                    else:
+                        logger.warning(f"No subject_id provided in metadata, cannot mark attendance for {student_id}")
+
                 # Add to tracking lists
                 all_names.append(name)
                 all_student_ids.append(student_id)
