@@ -312,7 +312,7 @@
 
       auth.signInWithEmailAndPassword(email, password)
         .then((userCredential) => {
-          window.location.href = '/dashboard';
+          window.location.href = '/index';
         })
         .catch((error) => {
           console.error('Login error:', error);
