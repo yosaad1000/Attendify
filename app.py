@@ -94,21 +94,29 @@ def process_image_for_registration(image_data, student_id, name):
 
 
 #######################################################################################################################################
-def start_processing_image(image_data):
+def start_processing_image(image_data , subject_id, faculty_id):
     """Start processing image in background and return session ID"""
     try:
         # Create a new session with binary image data
         # Note: SessionManager.create_session only takes image_data as argument
         session_id = session_manager.create_session(image_data)
+        session_manager.update_session(session_id, {
+            'metadata': {
+                'subject_id': subject_id,
+                'faculty_id': faculty_id
+            }
+        })
         
+        # Add debug log
+        logger.info(f"Created session {session_id} and started processing")
         # Start a background thread to process faces
         threading.Thread(target=process_faces_background, args=(session_id,)).start()
+
         
         return session_id
     except Exception as e:
         logger.error(f"Error starting image processing: {e}")
         raise
-
 
 def process_faces_background(session_id):
     """Process faces in background and update session progressively"""
@@ -121,103 +129,149 @@ def process_faces_background(session_id):
         # Get the image data from the session
         image_data = session_data['image']
         
-        # Detect faces in the image using FaceService
-        np_image, face_locations = face_service.detect_faces(image_data)
-        
-        if not face_locations:
-            session_manager.update_session(session_id, {
-                'status': 'completed',
-                'error': 'No faces detected in the image'
-            })
-            logger.warning(f"No faces detected in session {session_id}")
-            return
-        
-        # Process each face
-        processed_faces = []
-        
         # Get metadata from session
         metadata = session_data.get('metadata', {})
         subject_id = metadata.get('subject_id', 'default_subject')
         faculty_id = metadata.get('faculty_id')
         
+        # Initialize services
+        attendance_service = AttendanceService()
+        
+        # First, get all students enrolled in this subject
+        subject_doc = storage_service.db.collection('subjects').document(subject_id).get()
+        if not subject_doc.exists:
+            session_manager.update_session(session_id, {
+                'status': 'error',
+                'error': f'Subject {subject_id} not found'
+            })
+            logger.error(f"Subject {subject_id} not found for session {session_id}")
+            return
+            
+        subject_data = subject_doc.to_dict()
+        enrolled_student_ids = subject_data.get('enrolled_students', [])
+        
+        if not enrolled_student_ids:
+            session_manager.update_session(session_id, {
+                'status': 'completed',
+                'error': 'No students enrolled in this subject'
+            })
+            logger.warning(f"No students enrolled in subject {subject_id}")
+            return
+        
+        # Track which students are present (will be updated during face detection)
+        present_student_ids = set()
+        
+        # Detect faces in the image using FaceService
+        np_image, face_locations = face_service.detect_faces(image_data)
+        
+        # Process each face
+        processed_faces = []
+        
         # Track names and student_ids for later drawing all faces at once
         all_names = []
         all_student_ids = []
         
-        # Initialize attendance service
-        attendance_service = AttendanceService()
-        
-        for i, face_location in enumerate(face_locations):
-            try:
-                # Get face encoding using FaceService
-                face_encoding = face_service.encode_face(np_image, face_location)
-                
-                # Find matching face using StorageService
-                student_id, name, score = storage_service.find_matching_face(face_encoding)
-                
-                # If a valid student was identified (student_id is not None)
-                if student_id:
-                    # Mark attendance for this student
-                    if subject_id:
-                        # Mark the student as present in this subject
-                        attendance_result = attendance_service.mark_attendance(
-                            student_id=student_id,
-                            subject_id=subject_id,
-                            faculty_id=faculty_id,
-                            status="present"
-                        )
+        # Process detected faces and mark present students
+        if face_locations:
+            for i, face_location in enumerate(face_locations):
+                try:
+                    # Get face encoding using FaceService
+                    face_encoding = face_service.encode_face(np_image, face_location)
+                    
+                    # Find matching face using StorageService
+                    student_id, name, score = storage_service.find_matching_face(face_encoding)
+                    
+                    # If a valid student was identified (student_id is not None)
+                    if student_id:
+                        # Add to set of present students
+                        present_student_ids.add(student_id)
                         
-                        # Log the attendance result
-                        if attendance_result:
-                            logger.info(f"Marked attendance for student {student_id} ({name}) in subject {subject_id}")
+                        # Mark attendance for this student
+                        if subject_id:
+                            # Mark the student as present in this subject
+                            attendance_result = attendance_service.mark_attendance(
+                                student_id=student_id,
+                                subject_id=subject_id,
+                                faculty_id=faculty_id,
+                                status="present"
+                            )
+                            
+                            # Log the attendance result
+                            if attendance_result:
+                                logger.info(f"Marked attendance for student {student_id} ({name}) in subject {subject_id}")
+                            else:
+                                logger.info(f"Attendance already marked or error for student {student_id} in subject {subject_id}")
                         else:
-                            logger.info(f"Attendance already marked or error for student {student_id} in subject {subject_id}")
-                    else:
-                        logger.warning(f"No subject_id provided in metadata, cannot mark attendance for {student_id}")
+                            logger.warning(f"No subject_id provided in metadata, cannot mark attendance for {student_id}")
 
-                # Add to tracking lists
-                all_names.append(name)
-                all_student_ids.append(student_id)
+                    # Add to tracking lists
+                    all_names.append(name)
+                    all_student_ids.append(student_id)
+                    
+                    # Crop face image
+                    top, right, bottom, left = face_location
+                    face_crop = face_service.crop_face(Image.fromarray(np_image), face_location)
+                    
+                    # Add to processed faces
+                    processed_faces.append({
+                        'id': i,
+                        'student_id': student_id,
+                        'name': name,
+                        'face_img': face_crop,
+                        'processed_at': datetime.now().isoformat()
+                    })
+                    
+                    # Update session with new face - important for real-time updates
+                    session_manager.update_session(session_id, {
+                        'processed_faces': processed_faces,
+                        'status': 'processing'  # Ensure status is set
+                    })
+                    
+                    # Add a small delay to make updates visible in UI
+                    time.sleep(0.2)
+                    
+                except Exception as e:
+                    logger.error(f"Error processing face {i}: {str(e)}")
+                    # Continue with next face
+            
+            # Draw all face rectangles at once using FaceService
+            pil_image_with_faces = face_service.draw_face_rectangles(np_image, face_locations, all_names, all_student_ids)
+            
+            # Convert processed image to base64
+            full_image_data = face_service.image_to_base64(pil_image_with_faces)
+        else:
+            logger.warning(f"No faces detected in session {session_id}")
+            full_image_data = None
+        
+        # Find absent students (enrolled but not present)
+        absent_student_ids = [sid for sid in enrolled_student_ids if sid not in present_student_ids]
+        
+        # Mark absent students
+        absent_students_count = 0
+        for student_id in absent_student_ids:
+            try:
+                attendance_result = attendance_service.mark_attendance(
+                    student_id=student_id,
+                    subject_id=subject_id,
+                    faculty_id=faculty_id,
+                    status="absent"
+                )
                 
-                # Crop face image
-                top, right, bottom, left = face_location
-                face_crop = face_service.crop_face(Image.fromarray(np_image), face_location)
-                
-                # Add to processed faces
-                processed_faces.append({
-                    'id': i,
-                    'student_id': student_id,
-                    'name': name,
-                    'face_img': face_crop,
-                    'processed_at': datetime.now().isoformat()
-                })
-                
-                # Update session with new face - important for real-time updates
-                session_manager.update_session(session_id, {
-                    'processed_faces': processed_faces,
-                    'status': 'processing'  # Ensure status is set
-                })
-                
-                # Add a small delay to make updates visible in UI
-                time.sleep(0.2)
-                
+                if attendance_result:
+                    absent_students_count += 1
+                    logger.info(f"Marked student {student_id} absent for subject {subject_id}")
             except Exception as e:
-                logger.error(f"Error processing face {i}: {str(e)}")
-                # Continue with next face
-        
-        # Draw all face rectangles at once using FaceService
-        pil_image_with_faces = face_service.draw_face_rectangles(np_image, face_locations, all_names, all_student_ids)
-        
-        # Convert processed image to base64
-        full_image_data = face_service.image_to_base64(pil_image_with_faces)
+                logger.error(f"Error marking student {student_id} absent: {str(e)}")
         
         # Mark processing as completed
         session_manager.update_session(session_id, {
             'status': 'completed',
             'full_image': full_image_data,
-            'total_faces': len(processed_faces)
+            'total_faces': len(processed_faces),
+            'present_count': len(present_student_ids),
+            'absent_count': absent_students_count
         })
-        logger.info(f"Completed processing session {session_id} with {len(processed_faces)} faces")
+        logger.info(f"Completed processing session {session_id}: {len(present_student_ids)} present, {absent_students_count} absent")
         
     except Exception as e:
         logger.error(f"Error in face processing for session {session_id}: {str(e)}")
@@ -490,18 +544,7 @@ def upload_file():
             faculty_name = faculty.to_dict().get('name', 'Unknown Faculty')
 
         # Start processing and get session ID
-        session_id = start_processing_image(image_data)
-        
-        # Store subject and faculty info in session metadata
-        session_manager.update_session(session_id, {
-            'metadata': {
-                'subject_id': subject_id,
-                'faculty_id': faculty_id
-            }
-        })
-        
-        # Add debug log
-        logger.info(f"Created session {session_id} and started processing")
+        session_id = start_processing_image(image_data , subject_id , faculty_id)
         
         return render_template('processing.html', 
                     session_id=session_id,
@@ -569,41 +612,7 @@ def get_enrolled_students(subject_id):
             'students': []
         }), 500
 
-@app.route('/process-captured-image', methods=['POST'])
-def process_captured_image():
-    # Get the base64 image data from the form
-    captured_image_data = request.form.get('captured_image')
-    subject_id = request.form.get('subject_id', 'default_subject')
-    faculty_id = request.form.get('faculty_id')
-    
-    if not captured_image_data:
-        return "No image data received", 400
-    
-    try:
-        # Remove the data URL prefix if present
-        if 'base64,' in captured_image_data:
-            image_data = captured_image_data.split('base64,')[1]
-        else:
-            image_data = captured_image_data
-            
-        # Convert base64 to binary
-        binary_image = base64.b64decode(image_data)
-        
-        # Start processing and get session ID
-        session_id = start_processing_image(binary_image)
-        
-        # Store subject and faculty info in session metadata
-        session_manager.update_session(session_id, {
-            'metadata': {
-                'subject_id': subject_id,
-                'faculty_id': faculty_id
-            }
-        })
-        
-        return render_template('processing.html', session_id=session_id)
-    except Exception as e:
-        logger.error(f"Capture processing error: {str(e)}")
-        return f"Error processing captured image: {str(e)}", 500
+
 
 
 @app.route('/face_status/<session_id>')
