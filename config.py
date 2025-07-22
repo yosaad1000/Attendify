@@ -24,7 +24,9 @@ class Config:
     PINECONE_INDEX_NAME = os.getenv("PINEONE_INDEX_NAME", "student-face-encodings")
     
     # Firebase Configuration
-    FIREBASE_CREDENTIALS = json.loads(os.getenv("FIREBASE_CREDENTIALS"))
+    SUPABASE_URL = os.getenv('SUPABASE_URL')
+    SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+    SUPABASE_SERVICE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
     
     # Session Management
     SESSION_CLEANUP_INTERVAL = 300  # 5 minutes

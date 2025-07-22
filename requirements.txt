@@ -11,3 +11,7 @@ SQLAlchemy==1.4.46
 pinecone==5.4.2
 psycopg2-binary==2.9.9
 firebase-admin
+supabase==1.0.4
+gotrue==1.0.4
+httpx==0.24.1
+uuid

@@ -260,83 +260,96 @@
     </div>
   </div>
 
-  <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<!-- Supabase JavaScript Client -->
+ <script src="./env.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
-  <!-- Firebase Configuration -->
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyCm-eLuJ9vRpWCIxgeQSiTfexX0kj3a-XM",
-      authDomain: "attendify-e010f.firebaseapp.com",
-      projectId: "attendify-e010f",
-      storageBucket: "attendify-e010f.firebasestorage.app",
-      messagingSenderId: "185015955387",
-      appId: "1:185015955387:web:ad3c03851e5d46911b1e9e",
-      measurementId: "G-6PVWRF499T"
-    };
+<!-- Supabase Configuration -->
+<script>
+  const supabase = window.supabase.createClient(
+    window.env.SUPABASE_URL,
+    window.env.SUPABASE_KEY
+  );
+</script>
 
-    // Initialize Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-  </script>
+<!-- Login Logic -->
+<script>
+  // Modal functions
+  function showErrorModal(message) {
+    const modal = document.getElementById('errorModal');
+    const errorMessage = document.getElementById('errorMessage');
+    errorMessage.textContent = message;
+    modal.style.display = 'block';
+  }
 
-  <!-- Login Logic -->
-  <script>
-    // Modal functions
-    function showErrorModal(message) {
-      const modal = document.getElementById('errorModal');
-      const errorMessage = document.getElementById('errorMessage');
-      errorMessage.textContent = message;
-      modal.style.display = 'block';
+  function closeModal() {
+    document.getElementById('errorModal').style.display = 'none';
+  }
+
+  // Close modal when clicking outside
+  window.onclick = function(event) {
+    const modal = document.getElementById('errorModal');
+    if (event.target === modal) {
+      closeModal();
     }
+  }
 
-    function closeModal() {
-      document.getElementById('errorModal').style.display = 'none';
-    }
+  // Login form handler
+  const loginForm = document.getElementById('loginForm'); // Make sure you have this ID on your form
+  
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+   
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
+      })
 
-    // Close modal when clicking outside
-    window.onclick = function(event) {
-      const modal = document.getElementById('errorModal');
-      if (event.target === modal) {
-        closeModal();
+      if (error) {
+        console.error('Login error:', error);
+        let friendlyMessage = 'Login failed. Please try again.';
+       
+        // Custom error messages for Supabase
+        switch(error.message) {
+          case 'Invalid login credentials':
+            friendlyMessage = 'Invalid email or password. Please try again.';
+            break;
+          case 'Email not confirmed':
+            friendlyMessage = 'Please confirm your email address before logging in.';
+            break;
+          case 'Too many requests':
+            friendlyMessage = 'Too many login attempts. Please try again later.';
+            break;
+          default:
+            friendlyMessage = error.message || 'Login failed. Please try again.';
+        }
+       
+        showErrorModal(friendlyMessage);
+      } else {
+        // Login successful
+        console.log('Login successful:', data);
+        window.location.href = '/index';
       }
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      showErrorModal('An unexpected error occurred. Please try again.');
     }
+  });
 
-    // Modified login handler
-    loginForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-
-      auth.signInWithEmailAndPassword(email, password)
-        .then((userCredential) => {
-          window.location.href = '/index';
-        })
-        .catch((error) => {
-          console.error('Login error:', error);
-          let friendlyMessage = 'Login failed. Please try again.';
-          
-          // Custom error messages
-          switch(error.code) {
-            case 'auth/invalid-email':
-              friendlyMessage = 'Please enter a valid email address';
-              break;
-            case 'auth/user-disabled':
-              friendlyMessage = 'This account has been disabled';
-              break;
-            case 'auth/user-not-found':
-              friendlyMessage = 'No account found with this email';
-              break;
-            case 'auth/wrong-password':
-              friendlyMessage = 'Incorrect password. Please try again';
-              break;
-          }
-          
-          showErrorModal(friendlyMessage);
-        });
-    });
-  </script>
+  // Check if user is already logged in
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      // User is signed in
+      console.log('User signed in:', session.user);
+    } else if (event === 'SIGNED_OUT') {
+      // User is signed out
+      console.log('User signed out');
+    }
+  });
+</script>
 </body>
 </html>

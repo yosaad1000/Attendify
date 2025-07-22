@@ -1,7 +1,6 @@
 import logging
 from datetime import datetime
 import uuid
-from firebase_admin import firestore
 
 from models.attendance import Attendance
 from services.storage_service import StorageService
@@ -9,43 +8,25 @@ from services.storage_service import StorageService
 logger = logging.getLogger(__name__)
 
 class AttendanceService:
-    """
-    Service for attendance-related operations
-    """
+    """Service for attendance-related operations"""
+    
     def __init__(self):
         self.storage = StorageService()
     
     def mark_attendance(self, student_id, subject_id, faculty_id=None, status="present"):
-        """
-        Mark attendance for a student
-        
-        Args:
-            student_id: Student ID
-            subject_id: Subject ID
-            faculty_id: Faculty ID who is marking attendance
-            status: Attendance status (present, absent, late)
-        
-        Returns:
-            True if attendance marked successfully, False otherwise
-        """
+        """Mark attendance for a student"""
         try:
-            # Use Firestore's server timestamp for today's date
-            today = firestore.SERVER_TIMESTAMP
-            
-            # Check if attendance already marked for this student-subject-date
-            # We'll check this later when we have the actual timestamp from Firestore
-            
             attendance_id = f"att_{uuid.uuid4().hex}"
             attendance = Attendance(
                 attendance_id=attendance_id,
                 student_id=student_id,
                 subject_id=subject_id,
-                date=None,  # We'll let Firestore assign the timestamp
+                date=datetime.now(),
                 status=status,
                 verified_by=faculty_id
             )
             
-            # Record the attendance with Firestore timestamp
+            # Record the attendance
             self.storage.record_attendance(attendance)
             return True
             
@@ -54,16 +35,7 @@ class AttendanceService:
             return False
     
     def get_student_attendance_summary(self, student_id, subject_id=None):
-        """
-        Get attendance summary for a student
-        
-        Args:
-            student_id: Student ID
-            subject_id: Optional subject ID to filter by
-        
-        Returns:
-            Dict with attendance statistics
-        """
+        """Get attendance summary for a student"""
         try:
             attendance_records = self.storage.get_student_attendance(student_id, subject_id)
             
@@ -100,16 +72,7 @@ class AttendanceService:
             }
     
     def get_subject_attendance_summary(self, subject_id, date=None):
-        """
-        Get attendance summary for a subject
-        
-        Args:
-            subject_id: Subject ID
-            date: Optional date to filter by
-        
-        Returns:
-            Dict with attendance statistics
-        """
+        """Get attendance summary for a subject"""
         try:
             attendance_records = self.storage.get_subject_attendance(subject_id, date)
             
