@@ -20,7 +20,7 @@
       padding: 20px;
       position: relative;
     }
-    .error-modal {
+    .success-modal {
       display: none;
       position: fixed;
       top: 0;
@@ -55,7 +55,7 @@
     }
 
     .modal-title {
-      color: #e74c3c;
+      color: #27ae60;
       font-size: 1.3rem;
       font-weight: bold;
     }
@@ -163,6 +163,19 @@
       height: auto;
     }
 
+    /* Auth disabled notice */
+    .auth-notice {
+      position: absolute;
+      top: 60px;
+      right: 20px;
+      background: #f39c12;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 5px;
+      font-size: 0.9rem;
+      font-weight: bold;
+    }
+
     /* Responsive Styles */
     @media (max-width: 1024px) {
       .container {
@@ -178,6 +191,11 @@
       }
       .right-column {
         height: 300px;
+      }
+      .auth-notice {
+        position: static;
+        margin-bottom: 20px;
+        text-align: center;
       }
     }
     @media (max-width: 768px) {
@@ -226,17 +244,23 @@
 </head>
 <body>
 
-<div class="error-modal" id="errorModal">
+<div class="success-modal" id="successModal">
     <div class="modal-content">
         <div class="modal-header">
-        <h3 class="modal-title">Login Error</h3>
+        <h3 class="modal-title">Login Successful</h3>
         <button class="close-modal" onclick="closeModal()">&times;</button>
         </div>
-        <div class="modal-body" id="errorMessage">
-        <!-- Error message will be inserted here -->
+        <div class="modal-body" id="successMessage">
+        Redirecting to dashboard...
         </div>
     </div>
-    </div>
+</div>
+
+  <!-- Auth disabled notice -->
+  <div class="auth-notice">
+    🔓 AUTH DISABLED - Testing Mode
+  </div>
+
   <!-- Back Button -->
   <a href="/" class="back-button">&larr;</a>
 
@@ -250,7 +274,7 @@
         <a href="#" class="forgot-password">Forget Password</a>
         <div class="buttons">
           <button type="submit" class="login-button">Login</button>
-          <button type="button" class="admin-button">Admin</button>
+          <button type="button" class="admin-button" onclick="handleAdminLogin()">Admin</button>
         </div>
       </form>
     </div>
@@ -260,42 +284,30 @@
     </div>
   </div>
 
-<!-- Supabase JavaScript Client -->
- <script src="./env.js"></script>
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-
-<!-- Supabase Configuration -->
-<script>
-  const supabase = window.supabase.createClient(
-    window.env.SUPABASE_URL,
-    window.env.SUPABASE_KEY
-  );
-</script>
-
-<!-- Login Logic -->
+<!-- Login Logic - Auth Disabled -->
 <script>
   // Modal functions
-  function showErrorModal(message) {
-    const modal = document.getElementById('errorModal');
-    const errorMessage = document.getElementById('errorMessage');
-    errorMessage.textContent = message;
+  function showSuccessModal(message) {
+    const modal = document.getElementById('successModal');
+    const successMessage = document.getElementById('successMessage');
+    successMessage.textContent = message;
     modal.style.display = 'block';
   }
 
   function closeModal() {
-    document.getElementById('errorModal').style.display = 'none';
+    document.getElementById('successModal').style.display = 'none';
   }
 
   // Close modal when clicking outside
   window.onclick = function(event) {
-    const modal = document.getElementById('errorModal');
+    const modal = document.getElementById('successModal');
     if (event.target === modal) {
       closeModal();
     }
   }
 
-  // Login form handler
-  const loginForm = document.getElementById('loginForm'); // Make sure you have this ID on your form
+  // Login form handler - BYPASSES AUTH
+  const loginForm = document.getElementById('loginForm');
   
   loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -303,53 +315,33 @@
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
     
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password,
-      })
-
-      if (error) {
-        console.error('Login error:', error);
-        let friendlyMessage = 'Login failed. Please try again.';
-       
-        // Custom error messages for Supabase
-        switch(error.message) {
-          case 'Invalid login credentials':
-            friendlyMessage = 'Invalid email or password. Please try again.';
-            break;
-          case 'Email not confirmed':
-            friendlyMessage = 'Please confirm your email address before logging in.';
-            break;
-          case 'Too many requests':
-            friendlyMessage = 'Too many login attempts. Please try again later.';
-            break;
-          default:
-            friendlyMessage = error.message || 'Login failed. Please try again.';
-        }
-       
-        showErrorModal(friendlyMessage);
-      } else {
-        // Login successful
-        console.log('Login successful:', data);
-        window.location.href = '/index';
-      }
-    } catch (error) {
-      console.error('Unexpected error:', error);
-      showErrorModal('An unexpected error occurred. Please try again.');
+    // Simple validation to ensure fields are filled
+    if (!email || !password) {
+      alert('Please fill in both email and password fields');
+      return;
     }
+    
+    // Show success message
+    showSuccessModal('Login successful! Redirecting...');
+    
+    // Simulate a brief loading time and redirect
+    setTimeout(() => {
+      window.location.href = '/index'; // Change this to your main page route
+    }, 1500);
   });
 
-  // Check if user is already logged in
-  supabase.auth.onAuthStateChange((event, session) => {
-    if (event === 'SIGNED_IN' && session) {
-      // User is signed in
-      console.log('User signed in:', session.user);
-    } else if (event === 'SIGNED_OUT') {
-      // User is signed out
-      console.log('User signed out');
-    }
-  });
+  // Admin button handler
+  function handleAdminLogin() {
+    showSuccessModal('Admin login successful! Redirecting...');
+    
+    setTimeout(() => {
+      window.location.href = '/admin'; // Change this to your admin page route
+    }, 1500);
+  }
+
+  // Optional: Log that auth is disabled
+  console.log('🔓 Authentication is currently DISABLED - Testing mode active');
+  console.log('Any email/password combination will work for testing');
 </script>
 </body>
 </html>
