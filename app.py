@@ -2,9 +2,10 @@ import base64
 import logging
 import uuid
 import threading
+import time
 from datetime import datetime, date
 from io import BytesIO
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory, jsonify,flash
+from flask import Flask, render_template, request, redirect, url_for, send_from_directory, jsonify, flash
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageDraw
 from config import config
@@ -47,10 +48,10 @@ def process_image_for_registration(image_data, student_id, name):
         
         if not face_locations:
             raise ValueError("No faces found in the image")
-        
 
         if len(face_locations) > 1:
             raise ValueError("Multiple faces found in the image. Please upload an image with only one face.")
+        
         # Use the first face
         face_encoding = face_service.encode_face(np_image, face_locations[0])
         
@@ -62,43 +63,10 @@ def process_image_for_registration(image_data, student_id, name):
         logger.error(f"Error processing image for registration: {e}")
         raise
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#######################################################################################################################################
-def start_processing_image(image_data , subject_id, faculty_id):
+def start_processing_image(image_data, subject_id, faculty_id):
     """Start processing image in background and return session ID"""
     try:
         # Create a new session with binary image data
-        # Note: SessionManager.create_session only takes image_data as argument
         session_id = session_manager.create_session(image_data)
         session_manager.update_session(session_id, {
             'metadata': {
@@ -111,7 +79,6 @@ def start_processing_image(image_data , subject_id, faculty_id):
         logger.info(f"Created session {session_id} and started processing")
         # Start a background thread to process faces
         threading.Thread(target=process_faces_background, args=(session_id,)).start()
-
         
         return session_id
     except Exception as e:
@@ -137,9 +104,9 @@ def process_faces_background(session_id):
         # Initialize services
         attendance_service = AttendanceService()
         
-        # First, get all students enrolled in this subject
-        subject_doc = storage_service.db.collection('subjects').document(subject_id).get()
-        if not subject_doc.exists:
+        # First, get the subject and its enrolled students
+        subject = storage_service.get_subject_by_id(subject_id)
+        if not subject:
             session_manager.update_session(session_id, {
                 'status': 'error',
                 'error': f'Subject {subject_id} not found'
@@ -147,8 +114,7 @@ def process_faces_background(session_id):
             logger.error(f"Subject {subject_id} not found for session {session_id}")
             return
             
-        subject_data = subject_doc.to_dict()
-        enrolled_student_ids = subject_data.get('enrolled_students', [])
+        enrolled_student_ids = storage_service.get_enrolled_students(subject_id)
         
         if not enrolled_student_ids:
             session_manager.update_session(session_id, {
@@ -279,27 +245,8 @@ def process_faces_background(session_id):
             'status': 'error',
             'error': str(e)
         })
-#######################################################################################################################################
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 # Route handlers
-
 @app.route('/')
 def attendify():
     return render_template('attendify.html')
@@ -352,11 +299,11 @@ def dashboard():
             })
         
         # Calculate total number of attendance days
+        attendance_records = storage_service.get_attendance_records()
         attendance_dates = set()
-        for att in storage_service.db.collection('attendance').stream():
-            att_data = att.to_dict()
-            if 'date' in att_data:
-                attendance_dates.add(att_data['date'])
+        for att in attendance_records:
+            if hasattr(att, 'date') and att.date:
+                attendance_dates.add(att.date)
         
         total_days = len(attendance_dates)
         
@@ -368,43 +315,7 @@ def dashboard():
     except Exception as e:
         logger.error(f"Dashboard error: {str(e)}")
         return f"An error occurred: {e}", 500
-    
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#####################################################################################################################
-#saksham work here
-
-
-######################################################################################################################
 @app.route('/register_student', methods=['GET'])
 def register_student():
     """Show registration options for new and existing students"""
@@ -506,15 +417,6 @@ def register_existing_student():
                            departments=departments, 
                            current_year=current_year)
 
-
-
-
-######################################################################################################################
-
-
-
-
-#################################################################################################################################
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -535,20 +437,20 @@ def upload_file():
         subject_name = "Unknown Subject"
         faculty_name = "Unknown Faculty"
         
-        subject = storage_service.db.collection('subjects').document(subject_id).get()
-        if subject.exists:
-            subject_name = subject.to_dict().get('name', 'Unknown Subject')
+        subject = storage_service.get_subject_by_id(subject_id)
+        if subject:
+            subject_name = subject.name
             
-        faculty = storage_service.db.collection('faculty').document(faculty_id).get() 
-        if faculty.exists:
-            faculty_name = faculty.to_dict().get('name', 'Unknown Faculty')
+        faculty = storage_service.get_faculty_by_id(faculty_id)
+        if faculty:
+            faculty_name = faculty.name
 
         # Start processing and get session ID
-        session_id = start_processing_image(image_data , subject_id , faculty_id)
+        session_id = start_processing_image(image_data, subject_id, faculty_id)
         
         return render_template('processing.html', 
                     session_id=session_id,
-                    subject_id=subject_id,  # Pass subject_id to the template
+                    subject_id=subject_id,
                     faculty_name=faculty_name,
                     subject_name=subject_name)
     except Exception as e:
@@ -566,10 +468,10 @@ def get_enrolled_students(subject_id):
             logger.warning(f"Invalid subject_id received: {subject_id}")
             return jsonify({'error': 'Invalid subject ID'}), 400
         
-        # Get the subject document from Firestore
-        subject_doc = storage_service.db.collection('subjects').document(subject_id).get()
+        # Get the subject using the storage service
+        subject = storage_service.get_subject_by_id(subject_id)
         
-        if not subject_doc.exists:
+        if not subject:
             logger.warning(f"Subject not found: {subject_id}")
             return jsonify({
                 'subject_id': subject_id,
@@ -577,8 +479,7 @@ def get_enrolled_students(subject_id):
                 'students': []
             })
             
-        subject_data = subject_doc.to_dict()
-        enrolled_student_ids = subject_data.get('enrolled_students', [])
+        enrolled_student_ids = storage_service.get_enrolled_students(subject_id)
         
         logger.info(f"Found {len(enrolled_student_ids)} enrolled student IDs for subject {subject_id}")
         
@@ -600,7 +501,7 @@ def get_enrolled_students(subject_id):
         
         return jsonify({
             'subject_id': subject_id,
-            'subject_name': subject_data.get('name'),
+            'subject_name': subject.name,
             'students': students
         })
         
@@ -611,9 +512,6 @@ def get_enrolled_students(subject_id):
             'subject_id': subject_id,
             'students': []
         }), 500
-
-
-
 
 @app.route('/face_status/<session_id>')
 def face_status(session_id):
@@ -633,26 +531,6 @@ def face_status(session_id):
     logger.debug(f"Status response for session {session_id}: status={response['status']}, faces={response['total_faces']}")
     
     return jsonify(response)
-
-#######################################################################################################################################
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 @app.route('/capture')
 def capture():
@@ -675,8 +553,7 @@ def admin_departments():
         return redirect(url_for('admin_departments'))
     
     departments = storage_service.get_all_departments()
-    faculty = storage_service.db.collection('faculty').stream()
-    faculty_list = [Faculty.from_dict(doc.to_dict()) for doc in faculty]
+    faculty_list = storage_service.get_all_faculty()
     
     return render_template('admin/departments.html', departments=departments, faculty=faculty_list)
 
@@ -686,7 +563,7 @@ def set_hod():
     hod_id = request.form['hod_id']
     
     # Update the department with the new HOD
-    storage_service.db.collection('departments').document(dept_id).update({'hod': hod_id})
+    storage_service.update_department(dept_id, {'hod': hod_id})
     
     return redirect(url_for('admin_departments'))
 
@@ -699,10 +576,7 @@ def admin_faculty():
             subjects = request.form.getlist('subjects')
             
             # Update faculty subjects in database
-            faculty_ref = storage_service.db.collection('faculty').where('faculty_id', '==', faculty_id).get()
-            if faculty_ref:
-                doc = faculty_ref[0]
-                doc.reference.update({'subjects': subjects})
+            storage_service.update_faculty(faculty_id, {'subjects': subjects})
             
             return redirect(url_for('admin_faculty'))
         else:
@@ -716,18 +590,18 @@ def admin_faculty():
             if manual_id:
                 faculty_id = manual_id
             else:
-                faculty_count = len([doc for doc in storage_service.db.collection('faculty')
-                                   .where('departments', 'array_contains', department).stream()])
+                # Get count of faculty in department for ID generation
+                faculty_count = len([f for f in storage_service.get_all_faculty() 
+                                   if f.departments == department])
                 faculty_id = f"TE00{department}{faculty_count + 1}"
             
             # Check if ID already exists
-            existing_faculty = storage_service.db.collection('faculty') \
-                .where('faculty_id', '==', faculty_id).get()
+            existing_faculty = storage_service.get_faculty_by_id(faculty_id)
             if existing_faculty:
                 flash('Faculty ID already exists!', 'error')
                 return redirect(url_for('admin_faculty'))
             
-            # Get default subjects for the department - USING department_id NOW
+            # Get default subjects for the department
             default_subjects = [subj.subject_id for subj in storage_service.get_all_subjects() 
                                if subj.department_id == department]
             
@@ -742,7 +616,7 @@ def admin_faculty():
             
             return redirect(url_for('admin_faculty'))
     
-    faculty_list = [Faculty.from_dict(doc.to_dict()) for doc in storage_service.db.collection('faculty').stream()]
+    faculty_list = storage_service.get_all_faculty()
     departments = storage_service.get_all_departments()
     subjects = storage_service.get_all_subjects()
     
@@ -754,11 +628,8 @@ def admin_faculty():
 @app.route('/admin/faculty/remove/<faculty_id>', methods=['POST'])
 def remove_faculty(faculty_id):
     try:
-        # Delete faculty document from Firestore
-        faculty_ref = storage_service.db.collection('faculty').where('faculty_id', '==', faculty_id).get()
-        if faculty_ref:
-            for doc in faculty_ref:  # Need to loop through all matching documents
-                doc.reference.delete()
+        success = storage_service.delete_faculty(faculty_id)
+        if success:
             flash('Faculty removed successfully', 'success')
         else:
             flash('Faculty not found', 'error')
@@ -767,54 +638,45 @@ def remove_faculty(faculty_id):
         logger.error(f"Error removing faculty: {str(e)}")
         flash('Error removing faculty', 'error')
         return redirect(url_for('admin_faculty'))
-    
 
 @app.route('/admin/faculty/assign_subjects/<faculty_id>', methods=['GET', 'POST'])
 def assign_subjects(faculty_id):
     try:
         # Get faculty data
-        faculty_ref = storage_service.db.collection('faculty').where('faculty_id', '==', faculty_id).get()
-        if not faculty_ref:
+        faculty = storage_service.get_faculty_by_id(faculty_id)
+        if not faculty:
             flash('Faculty not found', 'error')
             return redirect(url_for('admin_faculty'))
-            
-        faculty_doc = faculty_ref[0]
-        faculty = Faculty.from_dict(faculty_doc.to_dict())
         
         if request.method == 'POST':
             # Get selected subjects from form
             selected_subjects = request.form.getlist('subjects')
             
             # Get previously assigned subjects
-            previous_subjects = faculty.subjects if hasattr(faculty, 'subjects') else []
+            previous_subjects = getattr(faculty, 'subjects', [])
             
             # Update faculty's subjects in database
-            faculty_doc.reference.update({'subjects': selected_subjects})
+            storage_service.update_faculty(faculty_id, {'subjects': selected_subjects})
             
             # Update subject documents to add/remove this faculty_id
             for subject_id in previous_subjects:
                 if subject_id not in selected_subjects:
                     # Remove faculty from this subject
-                    subject_ref = storage_service.db.collection('subjects').where('subject_id', '==', subject_id).get()
-                    if subject_ref:
-                        subject_doc = subject_ref[0]
-                        subject_data = subject_doc.to_dict()
-                        if 'faculty_ids' in subject_data and faculty_id in subject_data['faculty_ids']:
-                            subject_data['faculty_ids'].remove(faculty_id)
-                            subject_doc.reference.update({'faculty_ids': subject_data['faculty_ids']})
+                    subject = storage_service.get_subject_by_id(subject_id)
+                    if subject and hasattr(subject, 'faculty_ids') and faculty_id in subject.faculty_ids:
+                        subject.faculty_ids.remove(faculty_id)
+                        storage_service.update_subject(subject_id, {'faculty_ids': subject.faculty_ids})
             
             for subject_id in selected_subjects:
                 if subject_id not in previous_subjects:
                     # Add faculty to this subject
-                    subject_ref = storage_service.db.collection('subjects').where('subject_id', '==', subject_id).get()
-                    if subject_ref:
-                        subject_doc = subject_ref[0]
-                        subject_data = subject_doc.to_dict()
-                        if 'faculty_ids' not in subject_data:
-                            subject_data['faculty_ids'] = []
-                        if faculty_id not in subject_data['faculty_ids']:
-                            subject_data['faculty_ids'].append(faculty_id)
-                            subject_doc.reference.update({'faculty_ids': subject_data['faculty_ids']})
+                    subject = storage_service.get_subject_by_id(subject_id)
+                    if subject:
+                        if not hasattr(subject, 'faculty_ids'):
+                            subject.faculty_ids = []
+                        if faculty_id not in subject.faculty_ids:
+                            subject.faculty_ids.append(faculty_id)
+                            storage_service.update_subject(subject_id, {'faculty_ids': subject.faculty_ids})
             
             flash('Subjects assigned successfully', 'success')
             return redirect(url_for('admin_faculty'))
@@ -824,15 +686,15 @@ def assign_subjects(faculty_id):
         subjects = storage_service.get_all_subjects()
         
         # Get currently assigned subjects
-        assigned_subjects = faculty.subjects if hasattr(faculty, 'subjects') else []
+        assigned_subjects = getattr(faculty, 'subjects', [])
         
         # Get department name for display
         department_name = "Unknown"
         if isinstance(faculty.departments, str):
             dept_id = faculty.departments
-            dept_ref = storage_service.db.collection('departments').where('dept_id', '==', dept_id).get()
-            if dept_ref:
-                department_name = dept_ref[0].to_dict().get('name', "Unknown")
+            dept = next((d for d in storage_service.get_all_departments() if d.dept_id == dept_id), None)
+            if dept:
+                department_name = dept.name
         
         return render_template('admin/assign_subjects.html',
                             faculty=faculty,
@@ -874,24 +736,17 @@ def admin_subjects():
                          subjects=subjects,
                          departments=departments)
 
-
-
 @app.route('/admin/subjects/remove/<subject_id>', methods=['POST'])
 def remove_subject(subject_id):
     try:
-        # Delete subject document from Firestore
-        subject_ref = storage_service.db.collection('subjects').where('subject_id', '==', subject_id).get()
-        if subject_ref:
-            for doc in subject_ref:  # Need to loop through all matching documents
-                doc.reference.delete()
-            
-            # Also remove this subject from any faculty members who teach it
-            faculty_refs = storage_service.db.collection('faculty').where('subjects', 'array_contains', subject_id).get()
-            for faculty_doc in faculty_refs:
-                subjects_list = faculty_doc.to_dict().get('subjects', [])
-                if subject_id in subjects_list:
-                    subjects_list.remove(subject_id)
-                    faculty_doc.reference.update({'subjects': subjects_list})
+        success = storage_service.delete_subject(subject_id)
+        if success:
+            # Remove this subject from any faculty members who teach it
+            faculty_list = storage_service.get_all_faculty()
+            for faculty in faculty_list:
+                if hasattr(faculty, 'subjects') and subject_id in faculty.subjects:
+                    faculty.subjects.remove(subject_id)
+                    storage_service.update_faculty(faculty.faculty_id, {'subjects': faculty.subjects})
             
             flash('Subject removed successfully', 'success')
         else:
@@ -902,29 +757,6 @@ def remove_subject(subject_id):
         logger.error(f"Error removing subject: {str(e)}")
         flash('Error removing subject', 'error')
         return redirect(url_for('admin_subjects'))
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#####################################################################################################################
 
 @app.route('/admin/enroll_student', methods=['GET', 'POST'])
 def admin_enroll_student():
@@ -945,17 +777,10 @@ def admin_enroll_student():
         else:
             # Get student and subject details for the confirmation message
             student = storage_service.get_student(student_id)
-            subject_details = None
+            subject = storage_service.get_subject_by_id(subject_id)
             
-            # Find the subject details from all subjects
-            subjects = storage_service.get_all_subjects()
-            for subject in subjects:
-                if subject.subject_id == subject_id:
-                    subject_details = subject
-                    break
-            
-            if student and subject_details:
-                flash(f'Successfully enrolled {student.name} in {subject_details.name}', 'success')
+            if student and subject:
+                flash(f'Successfully enrolled {student.name} in {subject.name}', 'success')
             else:
                 flash('Student enrolled successfully', 'success')
         
@@ -971,7 +796,8 @@ def admin_enroll_student():
     for subject in subjects:
         # Get the list of student names for display
         enrolled_student_names = []
-        for student_id in subject.enrolled_students or []:
+        enrolled_student_ids = storage_service.get_enrolled_students(subject.subject_id)
+        for student_id in enrolled_student_ids or []:
             student = storage_service.get_student(student_id)
             if student:
                 enrolled_student_names.append(student.name)
@@ -1015,7 +841,6 @@ def get_subjects():
         app.logger.error(f"Error fetching subjects: {e}")
         return jsonify({'error': 'Failed to fetch subjects'}), 500
 
-
 @app.route('/admin/bulk_enroll_student', methods=['GET', 'POST'])
 def admin_bulk_enroll_student():
     """Route to handle bulk enrollment of students in semester courses"""
@@ -1054,10 +879,6 @@ def admin_bulk_enroll_student():
                          students=students,
                          departments=departments)
 
-
-
-
-
 @app.route('/admin/student_enrollments/<student_id>', methods=['GET', 'POST'])
 def admin_student_enrollments(student_id):
     """Route to display and manage a student's enrollments"""
@@ -1073,22 +894,13 @@ def admin_student_enrollments(student_id):
             # Drop a single course
             course_id = request.form.get('course_id')
             
-            # Remove course from student's enrolled courses
-            if course_id in student.course_enrolled_ids:
-                student.course_enrolled_ids.remove(course_id)
-                storage_service.update_student(student)
+            # Remove student from the course enrollment
+            success = storage_service.unenroll_student_from_course(student_id, course_id)
             
-            # Remove student from course's enrolled students
-            course_ref = storage_service.db.collection('subjects').document(course_id)
-            course_doc = course_ref.get()
-            if course_doc.exists:
-                course_data = course_doc.to_dict()
-                enrolled_students = course_data.get('enrolled_students', [])
-                if student_id in enrolled_students:
-                    enrolled_students.remove(student_id)
-                    course_ref.update({'enrolled_students': enrolled_students})
-            
-            flash(f'Student dropped from course', 'success')
+            if success:
+                flash(f'Student dropped from course', 'success')
+            else:
+                flash(f'Failed to drop student from course', 'error')
             
         elif action == 'clear_all':
             # Clear all enrollments
@@ -1107,41 +919,13 @@ def admin_student_enrollments(student_id):
                           student=student,
                           enrolled_subjects=enrolled_subjects)
 
-
-
-
-
-
-
-
-
-
-
-
-
-#######################################################################################################################################
-# @app.route('/upload-page')
-# def upload_page():
-#     # Get subject and faculty data for the form if needed
-#     subjects = storage_service.get_all_subjects()
-#     faculty = [Faculty.from_dict(doc.to_dict()) for doc in storage_service.db.collection('faculty').stream()]
-    
-#     return render_template('upload.html', subjects=subjects, faculty=faculty)
-
 @app.route('/mark-attendance')
 def mark_attendance():
     """
     Render the mark attendance page with faculty list
     """
-    # Get faculty with document IDs
-    faculty = []
-    faculty_ref = storage_service.db.collection('faculty').stream()
-    for doc in faculty_ref:
-        faculty_data = doc.to_dict()
-        faculty_data['faculty_id'] = doc.id  # Ensure we have the document ID
-        faculty.append(Faculty.from_dict(faculty_data))
-
-    return render_template('teacher/mark_attendance.html', faculty=faculty)
+    faculty_list = storage_service.get_all_faculty()
+    return render_template('teacher/mark_attendance.html', faculty=faculty_list)
 
 @app.route('/get-faculty-subjects/<faculty_id>')
 def get_faculty_subjects(faculty_id):
@@ -1150,21 +934,24 @@ def get_faculty_subjects(faculty_id):
     """
     try:
         # Get faculty document to fetch subjects
-        faculty_doc = storage_service.db.collection('faculty').document(faculty_id).get()
+        faculty = storage_service.get_faculty_by_id(faculty_id)
         
-        if not faculty_doc.exists:
+        if not faculty:
             return jsonify({'success': False, 'message': 'Faculty not found', 'subjects': []}), 404
         
-        faculty_data = faculty_doc.to_dict()
-        subject_ids = faculty_data.get('subjects', [])
+        subject_ids = getattr(faculty, 'subjects', [])
         
         # Get subject details for each subject ID
         subjects = []
         for subject_id in subject_ids:
-            subject_doc = storage_service.db.collection('subjects').document(subject_id).get()
-            if subject_doc.exists:
-                subject_data = subject_doc.to_dict()
-                subject_data['subject_id'] = subject_id  # Ensure we have the document ID
+            subject = storage_service.get_subject_by_id(subject_id)
+            if subject:
+                subject_data = {
+                    'subject_id': subject_id,
+                    'name': subject.name,
+                    'department_id': getattr(subject, 'department_id', ''),
+                    'semester': getattr(subject, 'semester', 1)
+                }
                 subjects.append(subject_data)
         
         return jsonify({
@@ -1179,89 +966,34 @@ def get_faculty_subjects(faculty_id):
             'message': f"Error: {str(e)}",
             'subjects': []
         }), 500
-#######################################################################################################################################
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 @app.route('/student/view_attendance/<student_id>')
 def student_view_attendance(student_id):
-    student = storage_service.db.collection('students').document(student_id).get()
-    if not student.exists:
+    student = storage_service.get_student(student_id)
+    if not student:
         return "Student not found", 404
     
-    student_data = Student.from_dict(student.to_dict())
-    
     # Get all subjects the student is enrolled in
-    enrollments = storage_service.db.collection('student_subjects') \
-        .where(storage_service.db.field_path('student_id'), '==', student_id) \
-        .stream()
-    
-    subject_ids = [enroll.to_dict()['subject_id'] for enroll in enrollments]
+    enrolled_subject_ids = storage_service.get_student_enrolled_subjects(student_id)
     
     # Get attendance for each subject
     attendance_data = []
-    for subject_id in subject_ids:
-        subject = storage_service.db.collection('subjects').document(subject_id).get()
-        if subject.exists:
-            subject_data = Subject.from_dict(subject.to_dict())
+    for subject_id in enrolled_subject_ids:
+        subject = storage_service.get_subject_by_id(subject_id)
+        if subject:
             summary = attendance_service.get_student_attendance_summary(student_id, subject_id)
             
             attendance_data.append({
                 'subject_id': subject_id,
-                'subject_name': subject_data.name,
-                'subject_code': subject_data.code,
+                'subject_name': subject.name,
+                'subject_code': getattr(subject, 'code', subject_id),
                 'days_present': summary['present_count'],
                 'total_days': summary['total_classes'],
                 'percentage': summary['attendance_percentage']
             })
     
     return render_template('student/view_attendance.html', 
-                         student=student_data,
+                         student=student,
                          attendance_data=attendance_data)
 
 if __name__ == '__main__':
